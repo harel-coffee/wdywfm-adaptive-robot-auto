@@ -1,6 +1,6 @@
-import gambit
-import solver
 import logging
+
+import gambit
 
 ROBOT_PLAYER_INDEX = 0
 PERSON_PLAYER_INDEX = 1
@@ -69,11 +69,15 @@ class InteractionGame(object):
             action_name, robot_payoff, person_payoff = person_response
             person_response_actions[action_index].label = action_name
 
-            outcome = self.game_tree.outcomes.add(person_type + "_" + robot_action + "_" + action_name + "_outcome")
+            outcome = self.game_tree.outcomes.add(self.get_outcome_description(person_type, robot_action, action_name))
             outcome[ROBOT_PLAYER_INDEX] = robot_payoff
             outcome[PERSON_PLAYER_INDEX] = person_payoff
             action_node = person_response_node.children[action_index]
             action_node.outcome = outcome
+
+    @staticmethod
+    def get_outcome_description(person_type, robot_action, person_response):
+        return person_type + "_" + robot_action + "_" + person_response + "_outcome"
 
     def write(self, show=True, filename="game_tree.efg"):
         game_as_efg = self.game_tree.write(format="efg")
@@ -104,34 +108,11 @@ class InteractionGame(object):
 
         return strategy
 
+    def get_outcome(self, person_type, robot_action, person_response):
+        outcomes = [outcome for outcome in self.game_tree.outcomes if
+                    outcome.label == self.get_outcome_description(person_type, robot_action, person_response)]
+        if len(outcomes) != 1:
+            logging.error("Multiple outcomes found")
+            return None
 
-def main():
-    interaction_game = InteractionGame("Two persons detected and one is a victim")
-    interaction_game.configure_types([("ZERO_RESPONDER", 1, 10), ("SELFISH", 9, 10)])
-    interaction_game.set_first_contact_actions(["follow_me", "wait_here"])
-
-    interaction_game.configure_person_response("ZERO_RESPONDER", "follow_me",
-                                               [("coming_together", 2, 2), ("coming_alone", -2, -2)])
-    interaction_game.configure_person_response("ZERO_RESPONDER", "wait_here",
-                                               [("wait_together", 1, 2), ("leave_alone", -1, -2)])
-    interaction_game.configure_person_response("SELFISH", "follow_me",
-                                               [("coming_together", 2, -1), ("coming_alone", -2, 2)])
-    interaction_game.configure_person_response("SELFISH", "wait_here",
-                                               [("wait_together", 1, -1), ("leave_alone", -1, 0)])
-    _ = interaction_game.write()
-
-    external_solver = solver.ExternalSubGamePerfectSolver()
-    equilibria = external_solver.solve(interaction_game.game_tree)
-
-    for strategy_profile in equilibria:
-        print interaction_game.get_robot_strategy(strategy_profile)
-
-        for person_type, _, _ in interaction_game.person_types:
-            for robot_action in interaction_game.robot_actions:
-                print "person_type", person_type, "robot_action", robot_action
-                print interaction_game.get_person_strategy(strategy_profile, person_type, robot_action)
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    main()
+        return outcomes[0][ROBOT_PLAYER_INDEX], outcomes[0][PERSON_PLAYER_INDEX]
