@@ -1,4 +1,6 @@
 import gambit
+import solver
+import logging
 
 ROBOT_PLAYER_INDEX = 0
 PERSON_PLAYER_INDEX = 1
@@ -11,7 +13,13 @@ class InteractionGame(object):
         self.game_tree.title = title
 
         self.robot_player = self.game_tree.players.add("Robot")
+        self.robot_actions = []
+        self.robot_firstcontact_infoset = None
+
         self.person_player = self.game_tree.players.add("Person")
+        self.person_types = []
+        self.person_response_infosets = {}
+        self.person_responses = {}
 
         self.game_tree_root = self.game_tree.root
         self.type_nodes_per_label = {}
@@ -19,8 +27,9 @@ class InteractionGame(object):
 
     def configure_types(self, epistemic_types):
         chance_move = self.game_tree_root.append_move(self.game_tree.players.chance, len(epistemic_types))
+        self.person_types = epistemic_types
 
-        for index, type_information in enumerate(epistemic_types):
+        for index, type_information in enumerate(self.person_types):
             description, prob_numerator, prob_denominator = type_information
             action = chance_move.actions[index]
             action.label = description
@@ -29,34 +38,38 @@ class InteractionGame(object):
             self.type_nodes_per_label[description] = self.game_tree_root.children[index]
 
     def set_first_contact_actions(self, robot_actions):
+        self.robot_actions = robot_actions
         first_type_node = self.game_tree_root.children[0]
 
-        robot_firstcontact_move = first_type_node.append_move(self.robot_player, len(robot_actions))
-        robot_firstcontact_move.label = "robot_first_move"
-        robot_firstcontact_actions = robot_firstcontact_move.actions
+        self.robot_firstcontact_infoset = first_type_node.append_move(self.robot_player, len(self.robot_actions))
+        self.robot_firstcontact_infoset.label = "robot_first_move"
+        robot_firstcontact_actions = self.robot_firstcontact_infoset.actions
 
-        for index, robot_action in enumerate(robot_actions):
+        for index, robot_action in enumerate(self.robot_actions):
             robot_firstcontact_actions[index].label = robot_action
             self.robot_action_index_per_label[robot_action] = index
 
         for node_index in range(1, len(self.game_tree_root.children)):
             type_node = self.game_tree_root.children[node_index]
-            type_node.append_move(robot_firstcontact_move)
+            type_node.append_move(self.robot_firstcontact_infoset)
 
-    def configure_person_response(self, type, robot_action, person_responses):
-        type_node = self.type_nodes_per_label[type]
+    def configure_person_response(self, person_type, robot_action, responses):
+        type_node = self.type_nodes_per_label[person_type]
         robot_action_index = self.robot_action_index_per_label[robot_action]
 
         person_response_node = type_node.children[robot_action_index]
-        person_response_move = person_response_node.append_move(self.person_player, len(person_responses))
-        person_response_move.label = type + "_on_" + robot_action + "_move"
+        person_response_infoset = person_response_node.append_move(self.person_player, len(responses))
+        self.person_response_infosets[(person_type, robot_action)] = person_response_infoset
+        self.person_responses[(person_type, robot_action)] = responses
 
-        person_response_actions = person_response_move.actions
-        for action_index, person_response in enumerate(person_responses):
+        person_response_infoset.label = person_type + "_on_" + robot_action + "_move"
+
+        person_response_actions = person_response_infoset.actions
+        for action_index, person_response in enumerate(responses):
             action_name, robot_payoff, person_payoff = person_response
             person_response_actions[action_index].label = action_name
 
-            outcome = self.game_tree.outcomes.add(type + "_" + robot_action + "_" + action_name + "_outcome")
+            outcome = self.game_tree.outcomes.add(person_type + "_" + robot_action + "_" + action_name + "_outcome")
             outcome[ROBOT_PLAYER_INDEX] = robot_payoff
             outcome[PERSON_PLAYER_INDEX] = person_payoff
             action_node = person_response_node.children[action_index]
@@ -70,10 +83,31 @@ class InteractionGame(object):
         with open(filename, "w") as game_file:
             game_file.write(game_as_efg)
 
+        logging.info("Game written to %s" % filename)
+        return filename
+
+    def get_robot_strategy(self, strategy_profile):
+        action_probabilities = strategy_profile[self.robot_firstcontact_infoset]
+        strategy = {}
+        for action_index, action_probability in enumerate(action_probabilities):
+            strategy[self.robot_actions[action_index]] = action_probability
+
+        return strategy
+
+    def get_person_strategy(self, strategy_profile, person_type, robot_action):
+        action_probabilities = strategy_profile[self.person_response_infosets[(person_type, robot_action)]]
+        person_actions = [action for action, _, _ in self.person_responses[(person_type, robot_action)]]
+
+        strategy = {}
+        for action_index, action_probability in enumerate(action_probabilities):
+            strategy[person_actions[action_index]] = action_probability
+
+        return strategy
+
 
 def main():
     interaction_game = InteractionGame("Two persons detected and one is a victim")
-    interaction_game.configure_types([("ZERO_RESPONDER", 1, 2), ("SELFISH", 1, 2)])
+    interaction_game.configure_types([("ZERO_RESPONDER", 1, 10), ("SELFISH", 9, 10)])
     interaction_game.set_first_contact_actions(["follow_me", "wait_here"])
 
     interaction_game.configure_person_response("ZERO_RESPONDER", "follow_me",
@@ -84,8 +118,20 @@ def main():
                                                [("coming_together", 2, -1), ("coming_alone", -2, 2)])
     interaction_game.configure_person_response("SELFISH", "wait_here",
                                                [("wait_together", 1, -1), ("leave_alone", -1, 0)])
-    interaction_game.write()
+    _ = interaction_game.write()
+
+    external_solver = solver.ExternalSubGamePerfectSolver()
+    equilibria = external_solver.solve(interaction_game.game_tree)
+
+    for strategy_profile in equilibria:
+        print interaction_game.get_robot_strategy(strategy_profile)
+
+        for person_type, _, _ in interaction_game.person_types:
+            for robot_action in interaction_game.robot_actions:
+                print "person_type", person_type, "robot_action", robot_action
+                print interaction_game.get_person_strategy(strategy_profile, person_type, robot_action)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     main()
