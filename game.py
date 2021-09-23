@@ -30,10 +30,10 @@ class InteractionGame(object):
         self.person_types = epistemic_types
 
         for index, type_information in enumerate(self.person_types):
-            description, prob_numerator, prob_denominator = type_information
+            description, probability = type_information
             action = chance_move.actions[index]
             action.label = description
-            action.prob = gambit.Rational(prob_numerator, prob_denominator)
+            action.prob = gambit.Rational(probability[0], probability[1])
 
             self.type_nodes_per_label[description] = self.game_tree_root.children[index]
 
@@ -82,7 +82,7 @@ class InteractionGame(object):
     def write(self, show=True, filename="game_tree.efg"):
         game_as_efg = self.game_tree.write(format="efg")
         if show:
-            print game_as_efg
+            logging.info(game_as_efg)
 
         with open(filename, "w") as game_file:
             game_file.write(game_as_efg)
