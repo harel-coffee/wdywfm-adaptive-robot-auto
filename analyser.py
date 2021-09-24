@@ -14,7 +14,7 @@ class TypeAnalyser(object):
 
         self.network.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["accuracy"])
 
-    def train(self, sensor_data, person_type):
+    def train(self, sensor_data, person_type, epochs, batch_size):
         sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
                                                                                                     person_type,
                                                                                                     test_size=0.33,
@@ -22,9 +22,9 @@ class TypeAnalyser(object):
 
         training_history = self.network.fit(sensor_data_train,
                                             person_type_train,
-                                            epochs=10,
+                                            epochs=epochs,
                                             verbose=1,
-                                            batch_size=100,
+                                            batch_size=batch_size,
                                             validation_data=(sensor_data_test, person_type_test))
 
         return training_history

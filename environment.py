@@ -14,9 +14,10 @@ CLASS_TO_TYPE = {
 
 class EmergencyEnvironment(object):
 
-    def __init__(self, sensor_data, person_type):
+    def __init__(self, sensor_data, person_type, interactions_per_scenario=33):
 
         self.data_index = 0
+        self.interactions_per_scenario = interactions_per_scenario
         self.total_sensor_data = sensor_data
         self.total_person_type = person_type
 
@@ -30,11 +31,11 @@ class EmergencyEnvironment(object):
         self.interaction_game = None
         self.external_solver = solver.ExternalSubGamePerfectSolver()
 
-    def configure_scenario(self, num_interactions=33):
+    def configure_scenario(self):
         records, _ = self.total_sensor_data.shape
         selection_index = range(0, records)
 
-        index_current_sample = np.random.choice(selection_index, size=num_interactions, replace=False)
+        index_current_sample = np.random.choice(selection_index, size=self.interactions_per_scenario, replace=False)
         self.sample_sensor_data = self.total_sensor_data[index_current_sample, :]
         self.sample_person_type = self.total_person_type[index_current_sample]
 
@@ -68,8 +69,8 @@ class EmergencyEnvironment(object):
         logging.info("person_action: %s " % person_action)
 
         interaction_outcome = self.interaction_game.get_outcome(current_person_type, robot_action, person_action)
-        robot_payoff = interaction_outcome[ROBOT_PLAYER_INDEX]
-        person_payoff = interaction_outcome[PERSON_PLAYER_INDEX]
+        robot_payoff = float(interaction_outcome[ROBOT_PLAYER_INDEX])
+        person_payoff = float(interaction_outcome[PERSON_PLAYER_INDEX])
 
         logging.info("robot_payoff: %.4f" % robot_payoff)
         logging.info("person_payoff: %.4f" % person_payoff)
