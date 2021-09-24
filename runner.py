@@ -48,7 +48,7 @@ def main():
                                                                                                 person_type,
                                                                                                 test_size=0.33,
                                                                                                 random_state=0)
-    logging.info("Training data: ", len(sensor_data_train))
+    logging.info("Training data: : %.4f" % len(sensor_data_train))
     _, num_features = sensor_data.shape
     type_analyser = TypeAnalyser(num_features)
     training_history = type_analyser.train(sensor_data_train, person_type_train)
@@ -58,13 +58,19 @@ def main():
     emergency_environment = EmergencyEnvironment(sensor_data_test, person_type_test)
 
     current_sensor_data = emergency_environment.reset()
-    robot_action = robot_controller.sensor_data_callback(current_sensor_data)
+    done = False
 
-    next_observation, robot_payoff, done = emergency_environment.step(robot_action)
+    robot_payoffs = []
+    while not done:
+        logging.info("Data Index: %d " % emergency_environment.data_index)
+        robot_action = robot_controller.sensor_data_callback(current_sensor_data)
+        next_observation, robot_payoff, done = emergency_environment.step(robot_action)
+        robot_payoffs.append(robot_payoff)
 
-    print next_observation, robot_payoff, done
+    logging.info("Interactions: %.4f " % len(robot_payoffs))
+    logging.info("Total payoffs: %.4f " % sum(robot_payoffs))
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     main()

@@ -1,7 +1,8 @@
 import logging
 
 import solver
-from game import InteractionGame, ROBOT_PLAYER_INDEX
+from game import ROBOT_PLAYER_INDEX, PERSON_PLAYER_INDEX
+from samplegame import generate_game_model
 
 CLASS_TO_TYPE = {
     0: "SELFISH",
@@ -19,7 +20,7 @@ class EmergencyEnvironment(object):
         self.sensor_data = sensor_data
         self.person_type = person_type
 
-        logging.info("Testing data: ", len(self.sensor_data))
+        logging.info("Testing data:  %.4f " % len(self.sensor_data))
 
         self.interaction_game = None
         self.external_solver = solver.ExternalSubGamePerfectSolver()
@@ -37,6 +38,7 @@ class EmergencyEnvironment(object):
         current_type_class = self.person_type[self.data_index]
         current_person_type = CLASS_TO_TYPE[current_type_class]
 
+        logging.info("current_person_type: %s" % current_person_type)
         equilibria = self.external_solver.solve(self.interaction_game.game_tree)
         if len(equilibria) > 1:
             logging.warning("Multiple equilibria found! Aborting")
@@ -45,9 +47,14 @@ class EmergencyEnvironment(object):
 
         person_strategy = self.interaction_game.get_person_strategy(strategy_profile, current_person_type, robot_action)
         person_action = max(person_strategy, key=person_strategy.get)
+        logging.info("person_action: %s " % person_action)
 
         interaction_outcome = self.interaction_game.get_outcome(current_person_type, robot_action, person_action)
         robot_payoff = interaction_outcome[ROBOT_PLAYER_INDEX]
+        person_payoff = interaction_outcome[PERSON_PLAYER_INDEX]
+
+        logging.info("robot_payoff: %.4f" % robot_payoff)
+        logging.info("person_payoff: %.4f" % person_payoff)
 
         next_observation = None
         done = False if self.data_index < len(self.sensor_data) else True
@@ -70,15 +77,5 @@ class EmergencyEnvironment(object):
         zero_responder_ratio = zero_responder_prob.as_integer_ratio()
         selfish_ratio = (1 - zero_responder_prob).as_integer_ratio()
 
-        self.interaction_game = InteractionGame("Two persons detected and one is a victim")
-        self.interaction_game.configure_types([("ZERO_RESPONDER", zero_responder_ratio), ("SELFISH", selfish_ratio)])
-        self.interaction_game.set_first_contact_actions(["follow_me", "wait_here"])
-
-        self.interaction_game.configure_person_response("ZERO_RESPONDER", "follow_me",
-                                                        [("coming_together", 2, 2), ("coming_alone", -2, -2)])
-        self.interaction_game.configure_person_response("ZERO_RESPONDER", "wait_here",
-                                                        [("wait_together", 1, 2), ("leave_alone", -1, -2)])
-        self.interaction_game.configure_person_response("SELFISH", "follow_me",
-                                                        [("coming_together", 2, -1), ("coming_alone", -2, 2)])
-        self.interaction_game.configure_person_response("SELFISH", "wait_here",
-                                                        [("wait_together", 1, -1), ("leave_alone", -1, 0)])
+        self.interaction_game = generate_game_model(zero_responder_ratio, selfish_ratio,
+                                                    filename="environment_game.efg")

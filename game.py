@@ -79,15 +79,14 @@ class InteractionGame(object):
     def get_outcome_description(person_type, robot_action, person_response):
         return person_type + "_" + robot_action + "_" + person_response + "_outcome"
 
-    def write(self, show=True, filename="game_tree.efg"):
+    def write(self, filename="game_tree.efg"):
         game_as_efg = self.game_tree.write(format="efg")
-        if show:
-            logging.info(game_as_efg)
+        logging.debug(game_as_efg)
 
         with open(filename, "w") as game_file:
             game_file.write(game_as_efg)
 
-        logging.info("Game written to %s" % filename)
+        logging.debug("Game written to %s" % filename)
         return filename
 
     def get_robot_strategy(self, strategy_profile):
