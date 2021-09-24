@@ -6,7 +6,7 @@ from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 
 from analyser import TypeAnalyser
-from controller import RobotController
+from controller import PessimisticRobotController, AdaptiveRobotController
 from environment import EmergencyEnvironment
 
 
@@ -37,6 +37,16 @@ def plot_training(training_history, metric):
     plt.show()
 
 
+def get_type_analyser(sensor_data_train, person_type_train):
+    logging.info("Training data: : %.4f" % len(sensor_data_train))
+    _, num_features = sensor_data_train.shape
+    type_analyser = TypeAnalyser(num_features)
+    training_history = type_analyser.train(sensor_data_train, person_type_train)
+    plot_training(training_history, "acc")
+
+    return type_analyser
+
+
 def main():
     np.random.seed(0)
 
@@ -48,13 +58,9 @@ def main():
                                                                                                 person_type,
                                                                                                 test_size=0.33,
                                                                                                 random_state=0)
-    logging.info("Training data: : %.4f" % len(sensor_data_train))
-    _, num_features = sensor_data.shape
-    type_analyser = TypeAnalyser(num_features)
-    training_history = type_analyser.train(sensor_data_train, person_type_train)
-    plot_training(training_history, "acc")
 
-    robot_controller = RobotController(type_analyser)
+    robot_controller = AdaptiveRobotController(get_type_analyser(sensor_data_train, person_type_train))
+    # robot_controller = PessimisticRobotController()
     emergency_environment = EmergencyEnvironment(sensor_data_test, person_type_test)
 
     current_sensor_data = emergency_environment.reset()
@@ -64,7 +70,9 @@ def main():
     while not done:
         logging.info("Data Index: %d " % emergency_environment.data_index)
         robot_action = robot_controller.sensor_data_callback(current_sensor_data)
-        next_observation, robot_payoff, done = emergency_environment.step(robot_action)
+        logging.info("robot_action: %s" % robot_action)
+
+        current_sensor_data, robot_payoff, done = emergency_environment.step(robot_action)
         robot_payoffs.append(robot_payoff)
 
     logging.info("Interactions: %.4f " % len(robot_payoffs))

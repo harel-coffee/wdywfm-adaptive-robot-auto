@@ -1,10 +1,22 @@
 import logging
 
 import solver
-from samplegame import generate_game_model
+from samplegame import generate_game_model, WAIT_HERE_ROBOT_ACTION
 
 
-class RobotController(object):
+class AbstractRobotController(object):
+
+    def sensor_data_callback(self, sensor_data):
+        raise NotImplementedError("Subclasses must override sensor_data_callback")
+
+
+class PessimisticRobotController(AbstractRobotController):
+
+    def sensor_data_callback(self, sensor_data):
+        return WAIT_HERE_ROBOT_ACTION
+
+
+class AdaptiveRobotController(AbstractRobotController):
 
     def __init__(self, type_analyser):
         self.type_analyser = type_analyser
@@ -27,8 +39,6 @@ class RobotController(object):
 
         robot_strategy = self.interaction_game.get_robot_strategy(strategy_profile)
         robot_action = max(robot_strategy, key=robot_strategy.get)
-
-        logging.info("robot_action: %s" % robot_action)
 
         return robot_action
 

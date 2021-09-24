@@ -2,11 +2,11 @@ import logging
 
 import solver
 from game import ROBOT_PLAYER_INDEX, PERSON_PLAYER_INDEX
-from samplegame import generate_game_model
+from samplegame import generate_game_model, SELFISH_TYPE, ZERO_RESPONDER_TYPE
 
 CLASS_TO_TYPE = {
-    0: "SELFISH",
-    1: "ZERO_RESPONDER"
+    0: SELFISH_TYPE,
+    1: ZERO_RESPONDER_TYPE
 }
 
 
@@ -57,7 +57,7 @@ class EmergencyEnvironment(object):
         logging.info("person_payoff: %.4f" % person_payoff)
 
         next_observation = None
-        done = False if self.data_index < len(self.sensor_data) else True
+        done = False if self.data_index < (len(self.sensor_data) - 1) else True
 
         if not done:
             self.data_index += 1
@@ -72,7 +72,7 @@ class EmergencyEnvironment(object):
         current_type_class = self.person_type[self.data_index]
         current_person_type = CLASS_TO_TYPE[current_type_class]
 
-        zero_responder_prob = 1. if current_person_type == "ZERO_RESPONDER" else 0.
+        zero_responder_prob = 1. if current_person_type == ZERO_RESPONDER_TYPE else 0.
 
         zero_responder_ratio = zero_responder_prob.as_integer_ratio()
         selfish_ratio = (1 - zero_responder_prob).as_integer_ratio()
