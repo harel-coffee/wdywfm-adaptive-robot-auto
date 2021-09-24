@@ -1,5 +1,7 @@
 import logging
 
+import numpy as np
+
 import solver
 from game import ROBOT_PLAYER_INDEX, PERSON_PLAYER_INDEX
 from samplegame import generate_game_model, SELFISH_TYPE, ZERO_RESPONDER_TYPE
@@ -13,21 +15,37 @@ CLASS_TO_TYPE = {
 class EmergencyEnvironment(object):
 
     def __init__(self, sensor_data, person_type):
+
         self.data_index = 0
+        self.total_sensor_data = sensor_data
+        self.total_person_type = person_type
+
+        logging.info("Testing data:  %.4f " % len(self.total_sensor_data))
+
         _, features = sensor_data.shape
-
         self.num_features = features
-        self.sensor_data = sensor_data
-        self.person_type = person_type
-
-        logging.info("Testing data:  %.4f " % len(self.sensor_data))
+        self.sample_sensor_data = None
+        self.sample_person_type = None
 
         self.interaction_game = None
         self.external_solver = solver.ExternalSubGamePerfectSolver()
 
+    def configure_scenario(self, num_interactions=33):
+        records, _ = self.total_sensor_data.shape
+        selection_index = range(0, records)
+
+        index_current_sample = np.random.choice(selection_index, size=num_interactions, replace=False)
+        self.sample_sensor_data = self.total_sensor_data[index_current_sample, :]
+        self.sample_person_type = self.total_person_type[index_current_sample]
+
+        logging.debug("Samples for scenario : %s" % str(len(self.sample_sensor_data)))
+
     def reset(self):
+        logging.info("Starting a new scenario")
         self.data_index = 0
-        next_observation = self.sensor_data[self.data_index]
+        self.configure_scenario()
+
+        next_observation = self.sample_sensor_data[self.data_index]
         next_observation = next_observation.reshape(1, self.num_features)
 
         self.update_interaction_game()
@@ -35,7 +53,7 @@ class EmergencyEnvironment(object):
 
     def step(self, robot_action):
 
-        current_type_class = self.person_type[self.data_index]
+        current_type_class = self.sample_person_type[self.data_index]
         current_person_type = CLASS_TO_TYPE[current_type_class]
 
         logging.info("current_person_type: %s" % current_person_type)
@@ -57,19 +75,21 @@ class EmergencyEnvironment(object):
         logging.info("person_payoff: %.4f" % person_payoff)
 
         next_observation = None
-        done = False if self.data_index < (len(self.sensor_data) - 1) else True
+        done = False if self.data_index < (len(self.sample_sensor_data) - 1) else True
 
         if not done:
             self.data_index += 1
-            next_observation = self.sensor_data[self.data_index]
+            next_observation = self.sample_sensor_data[self.data_index]
             next_observation = next_observation.reshape(1, self.num_features)
 
             self.update_interaction_game()
+        else:
+            logging.info("Scenario finished")
 
         return next_observation, robot_payoff, done
 
     def update_interaction_game(self):
-        current_type_class = self.person_type[self.data_index]
+        current_type_class = self.sample_person_type[self.data_index]
         current_person_type = CLASS_TO_TYPE[current_type_class]
 
         zero_responder_prob = 1. if current_person_type == ZERO_RESPONDER_TYPE else 0.

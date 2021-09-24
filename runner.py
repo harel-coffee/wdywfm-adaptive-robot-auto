@@ -63,20 +63,28 @@ def main():
     # robot_controller = PessimisticRobotController()
     emergency_environment = EmergencyEnvironment(sensor_data_test, person_type_test)
 
-    current_sensor_data = emergency_environment.reset()
-    done = False
-
     robot_payoffs = []
-    while not done:
-        logging.info("Data Index: %d " % emergency_environment.data_index)
-        robot_action = robot_controller.sensor_data_callback(current_sensor_data)
-        logging.info("robot_action: %s" % robot_action)
+    num_scenarios = 30
 
-        current_sensor_data, robot_payoff, done = emergency_environment.step(robot_action)
-        robot_payoffs.append(robot_payoff)
+    for scenario in range(num_scenarios):
 
-    logging.info("Interactions: %.4f " % len(robot_payoffs))
-    logging.info("Total payoffs: %.4f " % sum(robot_payoffs))
+        current_sensor_data = emergency_environment.reset()
+        done = False
+        scenario_payoff = 0
+
+        while not done:
+            logging.info("Data Index: %d " % emergency_environment.data_index)
+            robot_action = robot_controller.sensor_data_callback(current_sensor_data)
+            logging.info("robot_action: %s" % robot_action)
+
+            current_sensor_data, robot_payoff, done = emergency_environment.step(robot_action)
+            scenario_payoff += robot_payoff
+
+        robot_payoffs.append(scenario_payoff)
+    logging.info("Scenarios: %.4f " % len(robot_payoffs))
+    logging.info("Mean payoffs: %.4f " % np.mean(robot_payoffs))
+    logging.info("Max payoffs: %.4f " % np.max(robot_payoffs))
+    logging.info("Min payoffs: %.4f " % np.mean(robot_payoffs))
 
 
 if __name__ == "__main__":
