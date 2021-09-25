@@ -9,6 +9,12 @@ from sklearn.model_selection import train_test_split
 from analyser import TypeAnalyser
 from controller import PessimisticRobotController, AdaptiveRobotController
 from environment import EmergencyEnvironment
+from samplegame import SELFISH_TYPE, ZERO_RESPONDER_TYPE
+
+TYPE_TO_CLASS = {
+    SELFISH_TYPE: 0,
+    ZERO_RESPONDER_TYPE: 1
+}
 
 
 class EarlyStoppingByTarget(Callback):
@@ -58,10 +64,24 @@ def plot_training(training_history, metric):
     plt.show()
 
 
-def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, epochs=20):
+def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, epochs=100):
     logging.info("Training data: : %.4f" % len(sensor_data_train))
     _, num_features = sensor_data_train.shape
     type_analyser = TypeAnalyser(num_features)
+
+    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[ZERO_RESPONDER_TYPE])[0]
+    selfish_index = np.where(person_type_train == TYPE_TO_CLASS[SELFISH_TYPE])[0]
+
+    logging.info("Training data -> Zero-responders: %d" % len(zero_responder_index))
+    logging.info("Training data -> Selfish: %d" % len(selfish_index))
+
+    if len(zero_responder_index) > len(selfish_index):
+        logging.info("Imbalanced dataset favouring zero-responders. Undersampling...")
+        zeroresponder_sample_index = np.random.choice(zero_responder_index, size=len(selfish_index), replace=False)
+
+        sensor_data_train = np.vstack(
+            (sensor_data_train[zeroresponder_sample_index, :], sensor_data_train[selfish_index, :]))
+        person_type_train = np.hstack((person_type_train[zeroresponder_sample_index], person_type_train[selfish_index]))
 
     validation_accuracy_monitor = 'val_acc'
     callbacks = [EarlyStoppingByTarget(monitor=validation_accuracy_monitor, target=target_accuracy, verbose=1),
@@ -82,9 +102,9 @@ def main():
 
     # Temporarily commented, until training with balanced data
     # zeroresponder_type_weight = 0.8  # According to: "Modelling social identification and helping in evacuation simulation"
-    zeroresponder_type_weight = 0.5
+    zeroresponder_type_weight = 0.8
     selfish_type_weight = 1 - zeroresponder_type_weight
-    target_accuracy = 0.8
+    target_accuracy = 0.65
     interactions_per_scenario = 33
     total_samples = 10000
     training_batch_size = 100
@@ -96,9 +116,9 @@ def main():
                                                                                                 test_size=0.33,
                                                                                                 random_state=0)
 
-    type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy)
-    robot_controller = AdaptiveRobotController(type_analyser)
-    # robot_controller = PessimisticRobotController()
+    # type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy)
+    # robot_controller = AdaptiveRobotController(type_analyser)
+    robot_controller = PessimisticRobotController()
     emergency_environment = EmergencyEnvironment(sensor_data_test, person_type_test, interactions_per_scenario)
 
     robot_payoffs = []
@@ -126,5 +146,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     main()
