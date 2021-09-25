@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+from keras.callbacks import Callback, ModelCheckpoint
 from matplotlib import pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
@@ -8,6 +9,26 @@ from sklearn.model_selection import train_test_split
 from analyser import TypeAnalyser
 from controller import PessimisticRobotController, AdaptiveRobotController
 from environment import EmergencyEnvironment
+
+
+class EarlyStoppingByTarget(Callback):
+
+    def __init__(self, monitor='val_acc', target=0.8, verbose=0):
+        super(Callback, self).__init__()
+        self.monitor = monitor
+        self.target = target
+        self.verbose = verbose
+
+    def on_epoch_end(self, epoch, logs={}):
+        current_value = logs.get(self.monitor)
+        if current_value is None:
+            logging.error("Early stopping requires %s available!" % self.monitor)
+            raise RuntimeWarning()
+
+        if current_value >= self.target:
+            if self.verbose > 0:
+                logging.info("Epoch %s: early stopping, target accuracy reached" % str(epoch))
+            self.model.stop_training = True
 
 
 def get_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples):
@@ -37,11 +58,20 @@ def plot_training(training_history, metric):
     plt.show()
 
 
-def get_type_analyser(sensor_data_train, person_type_train, epochs, batch_size):
+def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, epochs=20):
     logging.info("Training data: : %.4f" % len(sensor_data_train))
     _, num_features = sensor_data_train.shape
     type_analyser = TypeAnalyser(num_features)
-    training_history = type_analyser.train(sensor_data_train, person_type_train, epochs, batch_size)
+
+    validation_accuracy_monitor = 'val_acc'
+    callbacks = [EarlyStoppingByTarget(monitor=validation_accuracy_monitor, target=target_accuracy, verbose=1),
+                 ModelCheckpoint(filepath="trained_model.h5", monitor=validation_accuracy_monitor, save_best_only=True)]
+
+    training_history = type_analyser.train(sensor_data_train,
+                                           person_type_train,
+                                           epochs,
+                                           batch_size,
+                                           callbacks)
     plot_training(training_history, "acc")
 
     return type_analyser
@@ -50,11 +80,13 @@ def get_type_analyser(sensor_data_train, person_type_train, epochs, batch_size):
 def main():
     np.random.seed(0)
 
-    selfish_type_weight = 0.5
+    # Temporarily commented, until training with balanced data
+    # zeroresponder_type_weight = 0.8  # According to: "Modelling social identification and helping in evacuation simulation"
     zeroresponder_type_weight = 0.5
+    selfish_type_weight = 1 - zeroresponder_type_weight
+    target_accuracy = 0.8
     interactions_per_scenario = 33
     total_samples = 10000
-    training_epochs = 10
     training_batch_size = 100
     num_scenarios = 30
 
@@ -64,10 +96,9 @@ def main():
                                                                                                 test_size=0.33,
                                                                                                 random_state=0)
 
-    type_analyser = get_type_analyser(sensor_data_train, person_type_train, epochs=training_epochs,
-                                      batch_size=training_batch_size)
-    # robot_controller = AdaptiveRobotController(type_analyser)
-    robot_controller = PessimisticRobotController()
+    type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy)
+    robot_controller = AdaptiveRobotController(type_analyser)
+    # robot_controller = PessimisticRobotController()
     emergency_environment = EmergencyEnvironment(sensor_data_test, person_type_test, interactions_per_scenario)
 
     robot_payoffs = []
@@ -95,5 +126,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     main()

@@ -1,6 +1,5 @@
 from keras import layers
 from keras import models
-from sklearn.model_selection import train_test_split
 
 
 class TypeAnalyser(object):
@@ -14,18 +13,14 @@ class TypeAnalyser(object):
 
         self.network.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["accuracy"])
 
-    def train(self, sensor_data, person_type, epochs, batch_size):
-        sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
-                                                                                                    person_type,
-                                                                                                    test_size=0.33,
-                                                                                                    random_state=0)
-
-        training_history = self.network.fit(sensor_data_train,
-                                            person_type_train,
+    def train(self, sensor_data, person_type, epochs, batch_size, callbacks=None):
+        training_history = self.network.fit(sensor_data,
+                                            person_type,
                                             epochs=epochs,
                                             verbose=1,
+                                            callbacks=callbacks,
                                             batch_size=batch_size,
-                                            validation_data=(sensor_data_test, person_type_test))
+                                            validation_split=0.33)
 
         return training_history
 
