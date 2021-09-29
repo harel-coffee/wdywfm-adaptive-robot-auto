@@ -1,7 +1,7 @@
 import logging
 
 import numpy as np
-from keras.callbacks import Callback, ModelCheckpoint
+from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
 from matplotlib import pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
@@ -84,7 +84,14 @@ def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_a
         person_type_train = np.hstack((person_type_train[zeroresponder_sample_index], person_type_train[selfish_index]))
 
     validation_accuracy_monitor = 'val_acc'
-    callbacks = [EarlyStoppingByTarget(monitor=validation_accuracy_monitor, target=target_accuracy, verbose=1),
+    if target_accuracy is not None:
+        logging.info("Training for target accuracy %s" % str(target_accuracy))
+        early_stopping_callback = EarlyStoppingByTarget(monitor=validation_accuracy_monitor, target=target_accuracy,
+                                                        verbose=1)
+    else:
+        logging.info("Training for best accuracy")
+        early_stopping_callback = EarlyStopping(monitor=validation_accuracy_monitor, patience=20)
+    callbacks = [early_stopping_callback,
                  ModelCheckpoint(filepath="trained_model.h5", monitor=validation_accuracy_monitor, save_best_only=True)]
 
     training_history = type_analyser.train(sensor_data_train,
@@ -102,7 +109,9 @@ def main():
 
     zeroresponder_type_weight = 0.8  # According to: "Modelling social identification and helping in evacuation simulation"
     selfish_type_weight = 1 - zeroresponder_type_weight
-    target_accuracy = 0.65
+    # target_accuracy = 0.65
+    target_accuracy = None
+    max_epochs = 200
     interactions_per_scenario = 33
     total_samples = 10000
     training_batch_size = 100
@@ -114,7 +123,8 @@ def main():
                                                                                                 test_size=0.33,
                                                                                                 random_state=0)
 
-    type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy)
+    type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
+                                      max_epochs)
     robot_controller = AdaptiveRobotController(type_analyser)
     # robot_controller = PessimisticRobotController()
     # robot_controller = OptimisticRobotController()
