@@ -7,7 +7,7 @@ from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 
 from analyser import TypeAnalyser
-from controller import PessimisticRobotController, AdaptiveRobotController
+from controller import PessimisticRobotController, AdaptiveRobotController, OptimisticRobotController
 from environment import EmergencyEnvironment
 from samplegame import SELFISH_TYPE, ZERO_RESPONDER_TYPE
 
@@ -100,9 +100,7 @@ def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_a
 def main():
     np.random.seed(0)
 
-    # Temporarily commented, until training with balanced data
-    # zeroresponder_type_weight = 0.8  # According to: "Modelling social identification and helping in evacuation simulation"
-    zeroresponder_type_weight = 0.8
+    zeroresponder_type_weight = 0.8  # According to: "Modelling social identification and helping in evacuation simulation"
     selfish_type_weight = 1 - zeroresponder_type_weight
     target_accuracy = 0.65
     interactions_per_scenario = 33
@@ -116,9 +114,11 @@ def main():
                                                                                                 test_size=0.33,
                                                                                                 random_state=0)
 
-    # type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy)
-    # robot_controller = AdaptiveRobotController(type_analyser)
-    robot_controller = PessimisticRobotController()
+    type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy)
+    robot_controller = AdaptiveRobotController(type_analyser)
+    # robot_controller = PessimisticRobotController()
+    # robot_controller = OptimisticRobotController()
+
     emergency_environment = EmergencyEnvironment(sensor_data_test, person_type_test, interactions_per_scenario)
 
     robot_payoffs = []

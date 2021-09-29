@@ -1,7 +1,7 @@
 import logging
 
 import solver
-from samplegame import generate_game_model, WAIT_HERE_ROBOT_ACTION
+from samplegame import generate_game_model, WAIT_HERE_ROBOT_ACTION, FOLLOW_ME_ROBOT_ACTION
 
 
 class AbstractRobotController(object):
@@ -14,6 +14,12 @@ class PessimisticRobotController(AbstractRobotController):
 
     def sensor_data_callback(self, sensor_data):
         return WAIT_HERE_ROBOT_ACTION
+
+
+class OptimisticRobotController(AbstractRobotController):
+
+    def sensor_data_callback(self, sensor_data):
+        return FOLLOW_ME_ROBOT_ACTION
 
 
 class AdaptiveRobotController(AbstractRobotController):
@@ -31,6 +37,10 @@ class AdaptiveRobotController(AbstractRobotController):
 
         self.model_interaction(zero_responder_prob=zero_responder_prob)
         equilibria = self.external_solver.solve(self.interaction_game.game_tree)
+
+        if len(equilibria) == 0:
+            logging.warning("No equilibria found! Aborting")
+            return
 
         if len(equilibria) > 1:
             logging.warning("Multiple equilibria found! Aborting")
