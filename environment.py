@@ -23,10 +23,10 @@ class EmergencyEnvironment(object):
         self.interactions_per_scenario = interactions_per_scenario
         self.total_sensor_data = sensor_data
         self.total_person_type = person_type
-
-        logging.info("Testing data:  %.4f " % len(self.total_sensor_data))
+        logging.info("Testing data:  {} ".format(self.total_sensor_data.shape))
 
         _, features = sensor_data.shape
+
         self.num_features = features
         self.sample_sensor_data = None
         self.sample_person_type = None
@@ -42,7 +42,7 @@ class EmergencyEnvironment(object):
         self.sample_sensor_data = self.total_sensor_data[index_current_sample, :]
         self.sample_person_type = self.total_person_type[index_current_sample]
 
-        logging.debug("Samples for scenario : %s" % str(len(self.sample_sensor_data)))
+        logging.debug("Samples for scenario : {}".format(self.sample_sensor_data.shape))
 
     def reset(self):
         logging.info("Starting a new scenario")

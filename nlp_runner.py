@@ -6,8 +6,10 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
-from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE
+from controller import AutonomicManagerController
+from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE, EmergencyEnvironment
 from analyser import NaiveBayesTypeAnalyser
+from synthetic_runner import INTERACTIONS_PER_SCENARIO, NUM_SCENARIOS, run_scenario, SEED
 
 
 def plot_word_counts(tweets_dataframe):
@@ -35,24 +37,28 @@ def get_naive_bayes_analyser(text_train, label_train):
 
 
 def main():
+    np.random.seed(SEED)
+
     tweet_text, tweet_label = get_dataset()
     text_train, text_test, label_train, label_test = train_test_split(tweet_text,
                                                                       tweet_label,
                                                                       stratify=tweet_label,
                                                                       test_size=0.5,
-                                                                      random_state=42)
+                                                                      random_state=SEED)
 
     naive_bayes_analyser = get_naive_bayes_analyser(text_train, label_train)
-    label_test_predicted = naive_bayes_analyser.predict_type(text_test)
+    robot_controller = AutonomicManagerController(naive_bayes_analyser)
+
+    text_test_features = naive_bayes_analyser.convert_text_to_features(text_test).toarray()
+    label_test_array = label_test.to_numpy()
+    emergency_environment = EmergencyEnvironment(text_test_features, label_test_array, INTERACTIONS_PER_SCENARIO)
+
+    _ = run_scenario(robot_controller, emergency_environment, NUM_SCENARIOS)
+
+    label_test_predicted = naive_bayes_analyser.predict_type(text_test_features)
     logging.info(
         classification_report(label_test, label_test_predicted, target_names=[CLASS_TO_TYPE[PERSONAL_IDENTITY_CLASS],
                                                                               CLASS_TO_TYPE[GROUP_IDENTITY_CLASS]]))
-
-    print(CLASS_TO_TYPE[naive_bayes_analyser.predict_type(["Sure!"]).item()])
-    print(naive_bayes_analyser.obtain_probabilities(["Sure!"]))
-
-    print(CLASS_TO_TYPE[naive_bayes_analyser.predict_type(["Sorry, no!"]).item()])
-    print(naive_bayes_analyser.obtain_probabilities(["Sorry, no!"]))
 
 
 if __name__ == "__main__":

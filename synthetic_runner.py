@@ -7,9 +7,13 @@ from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 
 from analyser import SyntheticTypeAnalyser
-from controller import PessimisticRobotController, AdaptiveRobotController, OptimisticRobotController
+from controller import PessimisticRobotController, AutonomicManagerController, OptimisticRobotController
 from environment import EmergencyEnvironment
 from samplegame import PERSONAL_IDENTITY_TYPE, GROUP_IDENTITY_TYPE
+
+SEED = 0
+NUM_SCENARIOS = 30
+INTERACTIONS_PER_SCENARIO = 33
 
 TYPE_TO_CLASS = {
     PERSONAL_IDENTITY_TYPE: 0,
@@ -104,33 +108,7 @@ def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_a
     return type_analyser
 
 
-def main():
-    np.random.seed(0)
-
-    zeroresponder_type_weight = 0.8  # According to: "Modelling social identification and helping in evacuation simulation"
-    selfish_type_weight = 1 - zeroresponder_type_weight
-    # target_accuracy = 0.65
-    target_accuracy = None
-    max_epochs = 200
-    interactions_per_scenario = 33
-    total_samples = 10000
-    training_batch_size = 100
-    num_scenarios = 30
-
-    sensor_data, person_type = get_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples)
-    sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
-                                                                                                person_type,
-                                                                                                test_size=0.33,
-                                                                                                random_state=0)
-
-    type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
-                                      max_epochs)
-    robot_controller = AdaptiveRobotController(type_analyser)
-    # robot_controller = PessimisticRobotController()
-    # robot_controller = OptimisticRobotController()
-
-    emergency_environment = EmergencyEnvironment(sensor_data_test, person_type_test, interactions_per_scenario)
-
+def run_scenario(robot_controller, emergency_environment, num_scenarios):
     robot_payoffs = []
 
     for scenario in range(num_scenarios):
@@ -148,11 +126,44 @@ def main():
             scenario_payoff += robot_payoff
 
         robot_payoffs.append(scenario_payoff)
+
     logging.info("Scenarios: %.4f " % len(robot_payoffs))
     logging.info("Mean payoffs: %.4f " % np.mean(robot_payoffs))
     logging.info("Std payoffs: %.4f " % np.std(robot_payoffs))
     logging.info("Max payoffs: %.4f " % np.max(robot_payoffs))
     logging.info("Min payoffs: %.4f " % np.mean(robot_payoffs))
+
+    return robot_payoffs
+
+
+def main():
+    np.random.seed(SEED)
+
+    zeroresponder_type_weight = 0.8  # According to: "Modelling social identification and helping in evacuation simulation"
+    selfish_type_weight = 1 - zeroresponder_type_weight
+    # target_accuracy = 0.65
+    target_accuracy = None
+    max_epochs = 200
+    interactions_per_scenario = INTERACTIONS_PER_SCENARIO
+    total_samples = 10000
+    training_batch_size = 100
+    num_scenarios = NUM_SCENARIOS
+
+    sensor_data, person_type = get_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples)
+    sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
+                                                                                                person_type,
+                                                                                                test_size=0.33,
+                                                                                                random_state=0)
+
+    type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
+                                      max_epochs)
+    robot_controller = AutonomicManagerController(type_analyser)
+    # robot_controller = PessimisticRobotController()
+    # robot_controller = OptimisticRobotController()
+
+    emergency_environment = EmergencyEnvironment(sensor_data_test, person_type_test, interactions_per_scenario)
+
+    _ = run_scenario(robot_controller, emergency_environment, num_scenarios)
 
 
 if __name__ == "__main__":

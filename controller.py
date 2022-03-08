@@ -22,7 +22,7 @@ class OptimisticRobotController(AbstractRobotController):
         return FOLLOW_ME_ROBOT_ACTION
 
 
-class AdaptiveRobotController(AbstractRobotController):
+class AutonomicManagerController(AbstractRobotController):
 
     def __init__(self, type_analyser):
         self.type_analyser = type_analyser
@@ -31,11 +31,11 @@ class AdaptiveRobotController(AbstractRobotController):
 
     def sensor_data_callback(self, sensor_data):
         type_probabilities = self.type_analyser.obtain_probabilities(sensor_data)
-        zero_responder_prob = type_probabilities.item()
+        group_identity_prob = type_probabilities.item()
 
-        logging.info("zero_responder_prob :  %.4f " % zero_responder_prob)
+        logging.info("group_identity_prob :  %.4f " % group_identity_prob)
 
-        self.model_interaction(zero_responder_prob=zero_responder_prob)
+        self.model_interaction(zero_responder_prob=group_identity_prob)
         equilibria = self.external_solver.solve(self.interaction_game.game_tree)
 
         if len(equilibria) == 0:

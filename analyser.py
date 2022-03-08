@@ -3,6 +3,8 @@ from keras import models
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 
+from environment import GROUP_IDENTITY_CLASS
+
 
 class SyntheticTypeAnalyser(object):
 
@@ -43,10 +45,11 @@ class NaiveBayesTypeAnalyser(object):
         text_train_counts = self.count_vectorizer.fit_transform(text_train)
         self.classifier.fit(text_train_counts, labels_train)
 
-    def obtain_probabilities(self, text):
-        text_counts = self.count_vectorizer.transform(text)
-        return self.classifier.predict_proba(text_counts)
+    def obtain_probabilities(self, text_features):
+        return self.classifier.predict_proba(text_features)[:, GROUP_IDENTITY_CLASS]
 
-    def predict_type(self, text):
-        text_counts = self.count_vectorizer.transform(text)
-        return self.classifier.predict(text_counts)
+    def predict_type(self, text_features):
+        return self.classifier.predict(text_features)
+
+    def convert_text_to_features(self, text):
+        return self.count_vectorizer.transform(text)
