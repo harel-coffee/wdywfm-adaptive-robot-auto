@@ -7,7 +7,7 @@ from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 
 from analyser import SyntheticTypeAnalyser
-from controller import PessimisticRobotController, AutonomicManagerController, OptimisticRobotController
+from controller import ProSelfRobotController, AutonomicManagerController, ProSocialRobotController
 from environment import EmergencyEnvironment
 from samplegame import PERSONAL_IDENTITY_TYPE, GROUP_IDENTITY_TYPE
 

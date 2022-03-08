@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
-from controller import AutonomicManagerController
+from controller import AutonomicManagerController, ProSocialRobotController
 from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE, EmergencyEnvironment
 from analyser import NaiveBayesTypeAnalyser
 from synthetic_runner import INTERACTIONS_PER_SCENARIO, NUM_SCENARIOS, run_scenario, SEED
@@ -47,10 +47,12 @@ def main():
                                                                       random_state=SEED)
 
     naive_bayes_analyser = get_naive_bayes_analyser(text_train, label_train)
-    robot_controller = AutonomicManagerController(naive_bayes_analyser)
-
     text_test_features = naive_bayes_analyser.convert_text_to_features(text_test).toarray()
     label_test_array = label_test.to_numpy()
+
+    robot_controller = AutonomicManagerController(naive_bayes_analyser)
+    robot_controller = ProSocialRobotController()
+
     emergency_environment = EmergencyEnvironment(text_test_features, label_test_array, INTERACTIONS_PER_SCENARIO)
 
     _ = run_scenario(robot_controller, emergency_environment, NUM_SCENARIOS)

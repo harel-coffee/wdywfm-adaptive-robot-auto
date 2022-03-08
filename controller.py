@@ -10,13 +10,13 @@ class AbstractRobotController(object):
         raise NotImplementedError("Subclasses must override sensor_data_callback")
 
 
-class PessimisticRobotController(AbstractRobotController):
+class ProSelfRobotController(AbstractRobotController):
 
     def sensor_data_callback(self, sensor_data):
         return WAIT_HERE_ROBOT_ACTION
 
 
-class OptimisticRobotController(AbstractRobotController):
+class ProSocialRobotController(AbstractRobotController):
 
     def sensor_data_callback(self, sensor_data):
         return FOLLOW_ME_ROBOT_ACTION
