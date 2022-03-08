@@ -6,14 +6,14 @@ from matplotlib import pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 
-from analyser import TypeAnalyser
+from analyser import SyntheticTypeAnalyser
 from controller import PessimisticRobotController, AdaptiveRobotController, OptimisticRobotController
 from environment import EmergencyEnvironment
-from samplegame import SELFISH_TYPE, ZERO_RESPONDER_TYPE
+from samplegame import PERSONAL_IDENTITY_TYPE, GROUP_IDENTITY_TYPE
 
 TYPE_TO_CLASS = {
-    SELFISH_TYPE: 0,
-    ZERO_RESPONDER_TYPE: 1
+    PERSONAL_IDENTITY_TYPE: 0,
+    GROUP_IDENTITY_TYPE: 1
 }
 
 
@@ -67,10 +67,10 @@ def plot_training(training_history, metric):
 def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, epochs=100):
     logging.info("Training data: : %.4f" % len(sensor_data_train))
     _, num_features = sensor_data_train.shape
-    type_analyser = TypeAnalyser(num_features)
+    type_analyser = SyntheticTypeAnalyser(num_features)
 
-    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[ZERO_RESPONDER_TYPE])[0]
-    selfish_index = np.where(person_type_train == TYPE_TO_CLASS[SELFISH_TYPE])[0]
+    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[GROUP_IDENTITY_TYPE])[0]
+    selfish_index = np.where(person_type_train == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]
 
     logging.info("Training data -> Zero-responders: %d" % len(zero_responder_index))
     logging.info("Training data -> Selfish: %d" % len(selfish_index))

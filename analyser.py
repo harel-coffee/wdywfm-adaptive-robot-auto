@@ -1,8 +1,10 @@
 from keras import layers
 from keras import models
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
 
 
-class TypeAnalyser(object):
+class SyntheticTypeAnalyser(object):
 
     def __init__(self, num_features):
         self.network = models.Sequential()
@@ -29,3 +31,22 @@ class TypeAnalyser(object):
 
     def predict_type(self, sensor_data):
         return self.network.predict_classes(sensor_data)
+
+
+class NaiveBayesTypeAnalyser(object):
+
+    def __init__(self):
+        self.count_vectorizer = CountVectorizer()
+        self.classifier = MultinomialNB()
+
+    def train(self, text_train, labels_train):
+        text_train_counts = self.count_vectorizer.fit_transform(text_train)
+        self.classifier.fit(text_train_counts, labels_train)
+
+    def obtain_probabilities(self, text):
+        text_counts = self.count_vectorizer.transform(text)
+        return self.classifier.predict_proba(text_counts)
+
+    def predict_type(self, text):
+        text_counts = self.count_vectorizer.transform(text)
+        return self.classifier.predict(text_counts)
