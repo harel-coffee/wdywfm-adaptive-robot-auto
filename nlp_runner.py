@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
 from controller import AutonomicManagerController, ProSocialRobotController
-from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE, EmergencyEnvironment
+from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE, EmergencyEvacuationEnvironment
 from analyser import NaiveBayesTypeAnalyser
 from synthetic_runner import INTERACTIONS_PER_SCENARIO, NUM_SCENARIOS, run_scenario, SEED
 
@@ -53,7 +53,7 @@ def main():
     robot_controller = AutonomicManagerController(naive_bayes_analyser)
     robot_controller = ProSocialRobotController()
 
-    emergency_environment = EmergencyEnvironment(text_test_features, label_test_array, INTERACTIONS_PER_SCENARIO)
+    emergency_environment = EmergencyEvacuationEnvironment(text_test_features, label_test_array, INTERACTIONS_PER_SCENARIO)
 
     _ = run_scenario(robot_controller, emergency_environment, NUM_SCENARIOS)
 

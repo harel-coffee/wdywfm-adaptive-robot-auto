@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from analyser import SyntheticTypeAnalyser
 from controller import ProSelfRobotController, AutonomicManagerController, ProSocialRobotController
-from environment import EmergencyEnvironment
+from environment import EmergencyEvacuationEnvironment
 from samplegame import PERSONAL_IDENTITY_TYPE, GROUP_IDENTITY_TYPE
 
 SEED = 0
@@ -161,7 +161,7 @@ def main():
     # robot_controller = PessimisticRobotController()
     # robot_controller = OptimisticRobotController()
 
-    emergency_environment = EmergencyEnvironment(sensor_data_test, person_type_test, interactions_per_scenario)
+    emergency_environment = EmergencyEvacuationEnvironment(sensor_data_test, person_type_test, interactions_per_scenario)
 
     _ = run_scenario(robot_controller, emergency_environment, num_scenarios)
 

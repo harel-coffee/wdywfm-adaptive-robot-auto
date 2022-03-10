@@ -15,7 +15,7 @@ CLASS_TO_TYPE = {
 }
 
 
-class EmergencyEnvironment(object):
+class EmergencyEvacuationEnvironment(object):
 
     def __init__(self, sensor_data, person_type, interactions_per_scenario=33):
 
