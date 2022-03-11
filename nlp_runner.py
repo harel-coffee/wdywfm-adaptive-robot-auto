@@ -46,18 +46,20 @@ def main():
                                                                       test_size=0.5,
                                                                       random_state=SEED)
 
-    naive_bayes_analyser = get_naive_bayes_analyser(text_train, label_train)
-    text_test_features = naive_bayes_analyser.convert_text_to_features(text_test).toarray()
+    type_analyser = get_naive_bayes_analyser(text_train, label_train)
+    raw_text_features = type_analyser.convert_text_to_features(text_test)
+    text_test_features = raw_text_features.toarray()
     label_test_array = label_test.to_numpy()
 
-    robot_controller = AutonomicManagerController(naive_bayes_analyser)
-    robot_controller = ProSocialRobotController()
+    robot_controller = AutonomicManagerController(type_analyser)
+    # robot_controller = ProSocialRobotController()
 
-    emergency_environment = EmergencyEvacuationEnvironment(text_test_features, label_test_array, INTERACTIONS_PER_SCENARIO)
+    emergency_environment = EmergencyEvacuationEnvironment(text_test_features, label_test_array,
+                                                           INTERACTIONS_PER_SCENARIO)
 
     _ = run_scenario(robot_controller, emergency_environment, NUM_SCENARIOS)
 
-    label_test_predicted = naive_bayes_analyser.predict_type(text_test_features)
+    label_test_predicted = type_analyser.predict_type(text_test_features)
     logging.info(
         classification_report(label_test, label_test_predicted, target_names=[CLASS_TO_TYPE[PERSONAL_IDENTITY_CLASS],
                                                                               CLASS_TO_TYPE[GROUP_IDENTITY_CLASS]]))
