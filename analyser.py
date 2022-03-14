@@ -1,5 +1,4 @@
 import logging
-import shlex
 import subprocess
 from subprocess import call
 
@@ -71,7 +70,7 @@ class TunedTransformerTypeAnalyser(object):
         self.prefix = 'conda run -n p36-wdywfm-adaptive-robot '
         self.python_script = '../transformer-type-estimator/transformer_analyser.py'
         self.training_command = self.prefix + 'python {} --train --train_csv "{}" --test_csv "{}"'
-        self.prediction_command = self.prefix + 'python {} --pred --input_text "{}"'
+        self.prediction_command = self.prefix + 'python {} --predlocal --input_text "{}"'
 
     def train(self, original_dataframe, test_size):
         logging.info("Test size {}".format(test_size))
@@ -92,11 +91,8 @@ class TunedTransformerTypeAnalyser(object):
         command = self.prediction_command.format(self.python_script, text_as_string)
 
         logging.info("Running {}".format(command))
-        prediction_process = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        standard_output, standard_error = prediction_process.communicate()
+        standard_output = subprocess.check_output(command, shell=True)
         logging.debug("standard_output {}".format(standard_output))
-        logging.debug("standard_error {}".format(standard_error))
 
         return np.array([float(standard_output)])
 
