@@ -1,14 +1,14 @@
 import logging
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split
+import numpy as np
+import pandas as pd
 from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
 
-from controller import AutonomicManagerController, ProSocialRobotController
-from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE, EmergencyEvacuationEnvironment
 from analyser import NaiveBayesTypeAnalyser
+from controller import AutonomicManagerController
+from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE, EmergencyEvacuationEnvironment
 from synthetic_runner import INTERACTIONS_PER_SCENARIO, NUM_SCENARIOS, run_scenario, SEED
 
 
@@ -23,46 +23,45 @@ def plot_word_counts(tweets_dataframe):
 
 def get_dataset():
     tweets_dataframe = pd.read_csv("data/survivor_responses.csv")
-    tweet_label = tweets_dataframe.pop("will_help").astype(int)
-    tweet_text = tweets_dataframe
-
-    return tweet_text["text"], tweet_label
+    tweets_dataframe["will_help"] = tweets_dataframe["will_help"].astype(int)
+    return tweets_dataframe
 
 
-def get_naive_bayes_analyser(text_train, label_train):
-    type_analyser = NaiveBayesTypeAnalyser()
-    type_analyser.train(text_train, label_train)
-
-    return type_analyser
-
-
-def main():
-    np.random.seed(SEED)
-
-    tweet_text, tweet_label = get_dataset()
+def configura_naive_bayes(tweets_dataframe):
+    tweet_label = tweets_dataframe.pop("will_help")
+    tweet_text = tweets_dataframe.pop("text")
     text_train, text_test, label_train, label_test = train_test_split(tweet_text,
                                                                       tweet_label,
                                                                       stratify=tweet_label,
                                                                       test_size=0.5,
                                                                       random_state=SEED)
 
-    type_analyser = get_naive_bayes_analyser(text_train, label_train)
+    type_analyser = NaiveBayesTypeAnalyser()
+    type_analyser.train(text_train, label_train)
+
     raw_text_features = type_analyser.convert_text_to_features(text_test)
     text_test_features = raw_text_features.toarray()
     label_test_array = label_test.to_numpy()
 
     robot_controller = AutonomicManagerController(type_analyser)
-    # robot_controller = ProSocialRobotController()
-
-    emergency_environment = EmergencyEvacuationEnvironment(text_test_features, label_test_array,
-                                                           INTERACTIONS_PER_SCENARIO)
-
-    _ = run_scenario(robot_controller, emergency_environment, NUM_SCENARIOS)
 
     label_test_predicted = type_analyser.predict_type(text_test_features)
     logging.info(
         classification_report(label_test, label_test_predicted, target_names=[CLASS_TO_TYPE[PERSONAL_IDENTITY_CLASS],
                                                                               CLASS_TO_TYPE[GROUP_IDENTITY_CLASS]]))
+
+    return robot_controller, text_test_features, label_test_array
+
+
+def main():
+    np.random.seed(SEED)
+    tweets_dataframe = get_dataset()
+
+    robot_controller, text_test_features, label_test_array = configura_naive_bayes(tweets_dataframe)
+    emergency_environment = EmergencyEvacuationEnvironment(text_test_features, label_test_array,
+                                                           INTERACTIONS_PER_SCENARIO)
+
+    _ = run_scenario(robot_controller, emergency_environment, NUM_SCENARIOS)
 
 
 if __name__ == "__main__":
