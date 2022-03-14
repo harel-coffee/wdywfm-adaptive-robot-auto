@@ -1,6 +1,10 @@
+import logging
+from subprocess import call
+
 from keras import layers
 from keras import models
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 
 from environment import GROUP_IDENTITY_CLASS
@@ -53,3 +57,33 @@ class NaiveBayesTypeAnalyser(object):
 
     def convert_text_to_features(self, text):
         return self.count_vectorizer.transform(text)
+
+
+class TunedTransformerTypeAnalyser(object):
+
+    def __init__(self):
+        self.prefix = 'conda run -n p36-wdywfm-adaptive-robot '
+        self.python_script = '../transformer-type-estimator/transformer_analyser.py'
+
+        self.training_command = self.prefix + 'python {} --train --train_csv "{}" --test_csv "{}"'
+
+    def train(self, original_dataframe, test_size):
+        logging.info("Test size {}".format(test_size))
+        training_csv_file = "training_data.csv"
+        testing_csv_file = "testing_data.csv"
+
+        training_dataframe, testing_dataframe = train_test_split(original_dataframe, test_size=test_size)
+        training_dataframe.to_csv(training_csv_file, index=False)
+        logging.info("Training data file created at {}".format(training_csv_file))
+        testing_dataframe.to_csv(testing_csv_file, index=False)
+        logging.info("Testing data file created at {}".format(testing_csv_file))
+
+        command = self.training_command.format(self.python_script, training_csv_file, testing_csv_file)
+        logging.info("Running {}".format(command))
+        exit_code = call(command, shell=True)
+        logging.info("exit_code {}".format(exit_code))
+
+        return training_dataframe, testing_dataframe
+
+    def obtain_probabilities(self, text_features):
+        pass
