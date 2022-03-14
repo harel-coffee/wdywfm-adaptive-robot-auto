@@ -1,6 +1,9 @@
 import logging
+import shlex
+import subprocess
 from subprocess import call
 
+import numpy as np
 from keras import layers
 from keras import models
 from sklearn.feature_extraction.text import CountVectorizer
@@ -62,28 +65,41 @@ class NaiveBayesTypeAnalyser(object):
 class TunedTransformerTypeAnalyser(object):
 
     def __init__(self):
+        self.training_csv_file = "training_data.csv"
+        self.testing_csv_file = "testing_data.csv"
+
         self.prefix = 'conda run -n p36-wdywfm-adaptive-robot '
         self.python_script = '../transformer-type-estimator/transformer_analyser.py'
-
         self.training_command = self.prefix + 'python {} --train --train_csv "{}" --test_csv "{}"'
+        self.prediction_command = self.prefix + 'python {} --pred --input_text "{}"'
 
     def train(self, original_dataframe, test_size):
         logging.info("Test size {}".format(test_size))
-        training_csv_file = "training_data.csv"
-        testing_csv_file = "testing_data.csv"
 
         training_dataframe, testing_dataframe = train_test_split(original_dataframe, test_size=test_size)
-        training_dataframe.to_csv(training_csv_file, index=False)
-        logging.info("Training data file created at {}".format(training_csv_file))
-        testing_dataframe.to_csv(testing_csv_file, index=False)
-        logging.info("Testing data file created at {}".format(testing_csv_file))
+        training_dataframe.to_csv(self.training_csv_file, index=False)
+        logging.info("Training data file created at {}".format(self.training_csv_file))
+        testing_dataframe.to_csv(self.testing_csv_file, index=False)
+        logging.info("Testing data file created at {}".format(self.testing_csv_file))
 
-        command = self.training_command.format(self.python_script, training_csv_file, testing_csv_file)
+        command = self.training_command.format(self.python_script, self.training_csv_file, self.testing_csv_file)
         logging.info("Running {}".format(command))
         exit_code = call(command, shell=True)
         logging.info("exit_code {}".format(exit_code))
 
-        return training_dataframe, testing_dataframe
-
     def obtain_probabilities(self, text_features):
-        pass
+        text_as_string = text_features.item()
+        command = self.prediction_command.format(self.python_script, text_as_string)
+
+        logging.info("Running {}".format(command))
+        prediction_process = subprocess.Popen(shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        standard_output, standard_error = prediction_process.communicate()
+        logging.debug("standard_output {}".format(standard_output))
+        logging.debug("standard_error {}".format(standard_error))
+
+        return np.array([float(standard_output)])
+
+    @staticmethod
+    def convert_text_to_features(text_series):
+        return np.expand_dims(text_series.to_numpy(), axis=1)
