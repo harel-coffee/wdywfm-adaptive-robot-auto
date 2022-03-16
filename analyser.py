@@ -3,6 +3,7 @@ import subprocess
 from subprocess import call
 
 import numpy as np
+from imblearn.over_sampling import RandomOverSampler
 from keras import layers
 from keras import models
 from sklearn.feature_extraction.text import CountVectorizer
@@ -47,7 +48,8 @@ class NaiveBayesTypeAnalyser(object):
         self.count_vectorizer = CountVectorizer()
         self.classifier = MultinomialNB()
 
-    def train(self, text_train, labels_train):
+    def train(self, text_train, labels_train, random_state):
+        text_train, labels_train = self.upsample_text_and_label(text_train, labels_train, random_state)
         text_train_counts = self.count_vectorizer.fit_transform(text_train)
         self.classifier.fit(text_train_counts, labels_train)
 
@@ -59,6 +61,22 @@ class NaiveBayesTypeAnalyser(object):
 
     def convert_text_to_features(self, text):
         return self.count_vectorizer.transform(text)
+
+    @staticmethod
+    def upsample_text_and_label(text_train, labels_train, random_state):
+        logging.info("Before upsampling -> text_train.shape {}".format(text_train.shape))
+        logging.info("Before upsampling -> label_train.shape {}".format(labels_train.shape))
+
+        text_train = np.expand_dims(text_train, axis=1)
+        over_sampler = RandomOverSampler(random_state=random_state)
+
+        text_train, label_train = over_sampler.fit_resample(text_train, labels_train)
+        text_train = np.squeeze(text_train)
+
+        logging.info("After upsampling -> text_train.shape {}".format(text_train.shape))
+        logging.info("After upsampling -> label_train.shape {}".format(label_train.shape))
+
+        return text_train, label_train
 
 
 class TunedTransformerTypeAnalyser(object):

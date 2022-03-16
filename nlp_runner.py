@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import train_test_split
+from sklearn.utils import resample
 
 from analyser import NaiveBayesTypeAnalyser, TunedTransformerTypeAnalyser
 from controller import AutonomicManagerController
 from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE, EmergencyEvacuationEnvironment
 from synthetic_runner import INTERACTIONS_PER_SCENARIO, NUM_SCENARIOS, run_scenario, SEED
-from imblearn.over_sampling import RandomOverSampler
 
 TEXT_CONTENT_COLUMN = "text"
 TEXT_LABEL_COLUMN = "label"
@@ -51,17 +51,24 @@ def configure_tuned_transformer(tweets_dataframe, test_size, column_for_stratify
     return type_analyser, text_test_features, label_test_array
 
 
-def upsample_minority_class(text_train, label_train):
-    text_train = np.expand_dims(text_train, axis=1)
-    over_sampler = RandomOverSampler(random_state=SEED)
+def upsample_dataframe(tweets_dataframe):
+    logging.info("Counts before upsampling")
+    logging.info(tweets_dataframe[TEXT_LABEL_COLUMN].value_counts())
 
-    text_train, label_train = over_sampler.fit_resample(text_train, label_train)
-    text_train = np.squeeze(text_train)
+    group_identity_mask = tweets_dataframe[TEXT_LABEL_COLUMN] == GROUP_IDENTITY_CLASS
+    group_identity_dataframe = tweets_dataframe[group_identity_mask]
+    personal_identity_dataframe = tweets_dataframe[~group_identity_mask]
 
-    logging.info("text_train.shape {}".format(text_train.shape))
-    logging.info("label_train.shape {}".format(label_train.shape))
+    personal_identity_upsample = resample(personal_identity_dataframe,
+                                          replace=True,
+                                          n_samples=len(group_identity_dataframe),
+                                          random_state=SEED)
 
-    return text_train, label_train
+    tweets_dataframe = pd.concat([group_identity_dataframe, personal_identity_upsample])
+
+    logging.info("Counts after upsampling")
+    logging.info(tweets_dataframe[TEXT_LABEL_COLUMN].value_counts())
+    return tweets_dataframe
 
 
 def configure_naive_bayes(tweets_dataframe, test_size):
@@ -73,10 +80,8 @@ def configure_naive_bayes(tweets_dataframe, test_size):
                                                                       stratify=tweet_label,
                                                                       test_size=test_size,
                                                                       random_state=SEED)
-
-    text_train, label_train = upsample_minority_class(text_train, label_train)
     type_analyser = NaiveBayesTypeAnalyser()
-    type_analyser.train(text_train, label_train)
+    type_analyser.train(text_train, label_train, SEED)
 
     raw_text_features = type_analyser.convert_text_to_features(text_test)
     text_test_features = raw_text_features.toarray()
