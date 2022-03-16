@@ -72,10 +72,13 @@ class TunedTransformerTypeAnalyser(object):
         self.training_command = self.prefix + 'python {} --trainlocal --train_csv "{}" --test_csv "{}"'
         self.prediction_command = self.prefix + 'python {} --predlocal --input_text "{}"'
 
-    def train(self, original_dataframe, test_size):
+    def train(self, original_dataframe, test_size, column_for_stratify, random_seed):
         logging.info("Test size {}".format(test_size))
 
-        training_dataframe, testing_dataframe = train_test_split(original_dataframe, test_size=test_size)
+        training_dataframe, testing_dataframe = train_test_split(original_dataframe,
+                                                                 stratify=original_dataframe[column_for_stratify],
+                                                                 test_size=test_size,
+                                                                 random_state=random_seed)
         training_dataframe.to_csv(self.training_csv_file, index=False)
         logging.info("Training data file created at {}".format(self.training_csv_file))
         testing_dataframe.to_csv(self.testing_csv_file, index=False)
