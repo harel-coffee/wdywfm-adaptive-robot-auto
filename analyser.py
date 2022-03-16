@@ -69,7 +69,7 @@ class TunedTransformerTypeAnalyser(object):
 
         self.prefix = 'conda run -n p36-wdywfm-adaptive-robot '
         self.python_script = '../transformer-type-estimator/transformer_analyser.py'
-        self.training_command = self.prefix + 'python {} --train --train_csv "{}" --test_csv "{}"'
+        self.training_command = self.prefix + 'python {} --trainlocal --train_csv "{}" --test_csv "{}"'
         self.prediction_command = self.prefix + 'python {} --predlocal --input_text "{}"'
 
     def train(self, original_dataframe, test_size):
