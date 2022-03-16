@@ -12,8 +12,8 @@ from environment import EmergencyEvacuationEnvironment
 from samplegame import PERSONAL_IDENTITY_TYPE, GROUP_IDENTITY_TYPE
 
 SEED = 0
-NUM_SCENARIOS = 10
-INTERACTIONS_PER_SCENARIO = 10
+NUM_SCENARIOS = 30
+INTERACTIONS_PER_SCENARIO = 15
 
 TYPE_TO_CLASS = {
     PERSONAL_IDENTITY_TYPE: 0,
@@ -161,7 +161,8 @@ def main():
     # robot_controller = PessimisticRobotController()
     # robot_controller = OptimisticRobotController()
 
-    emergency_environment = EmergencyEvacuationEnvironment(sensor_data_test, person_type_test, interactions_per_scenario)
+    emergency_environment = EmergencyEvacuationEnvironment(sensor_data_test, person_type_test,
+                                                           interactions_per_scenario)
 
     _ = run_scenario(robot_controller, emergency_environment, num_scenarios)
 
