@@ -4,7 +4,7 @@ import numpy as np
 np.random.seed(SEED)
 import tensorflow as tf
 
-tf.set_random_seed(SEED)
+tf.compat.v1.set_random_seed(SEED)
 
 import logging
 
@@ -86,12 +86,14 @@ def main():
     test_size = 0.5
     dataframe = get_dataset()
 
-    # type_analyser, text_test_features, label_test_array = configure_naive_bayes(dataframe, test_size)
-    type_analyser, text_test_features, label_test_array = configure_tuned_transformer(dataframe, test_size,
-                                                                                      TEXT_LABEL_COLUMN, SEED,
-                                                                                      train=False)
+    type_analyser, text_test_features, label_test_array = configure_naive_bayes(dataframe, test_size)
+    # type_analyser, text_test_features, label_test_array = configure_tuned_transformer(dataframe, test_size,
+    #                                                                                   TEXT_LABEL_COLUMN, SEED,
+    #                                                                                   train=True)
 
-    robot_controller = AutonomicManagerController(type_analyser)
+    # robot_controller = AutonomicManagerController(type_analyser)
+    robot_controller = ProSocialRobotController()
+
     emergency_environment = EmergencyEvacuationEnvironment(text_test_features, label_test_array,
                                                            INTERACTIONS_PER_SCENARIO)
     _ = run_scenario(robot_controller, emergency_environment, NUM_SCENARIOS)
