@@ -17,7 +17,7 @@ from sklearn.model_selection import train_test_split
 from analyser import NaiveBayesTypeAnalyser, TunedTransformerTypeAnalyser
 from controller import AutonomicManagerController, ProSocialRobotController, ProSelfRobotController
 from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE, EmergencyEvacuationEnvironment
-from synthetic_runner import INTERACTIONS_PER_SCENARIO, NUM_SCENARIOS, run_scenario
+from synthetic_runner import run_scenario
 
 TEXT_CONTENT_COLUMN = "text"
 TEXT_LABEL_COLUMN = "label"
@@ -92,11 +92,12 @@ def main():
     #                                                                                   train=True)
 
     # robot_controller = AutonomicManagerController(type_analyser)
-    robot_controller = ProSocialRobotController()
+    # robot_controller = ProSocialRobotController()
+    robot_controller = ProSelfRobotController()
 
     emergency_environment = EmergencyEvacuationEnvironment(text_test_features, label_test_array,
-                                                           INTERACTIONS_PER_SCENARIO)
-    _ = run_scenario(robot_controller, emergency_environment, NUM_SCENARIOS)
+                                                           len(label_test_array))
+    _ = run_scenario(robot_controller, emergency_environment, 1)
 
 
 if __name__ == "__main__":

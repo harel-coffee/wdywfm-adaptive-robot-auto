@@ -86,6 +86,8 @@ class TunedTransformerTypeAnalyser(object):
     def __init__(self):
         self.training_csv_file = "training_data.csv"
         self.testing_csv_file = "testing_data.csv"
+        self.validation_csv_file = "validation_data.csv"
+        self.validation_size = 0.4
 
         self.prefix = 'conda run -n p36-wdywfm-adaptive-robot '
         self.python_script = '../transformer-type-estimator/transformer_analyser.py'
@@ -95,18 +97,29 @@ class TunedTransformerTypeAnalyser(object):
     def train(self, original_dataframe, test_size, label_column, random_seed):
         logging.info("Test size {}".format(test_size))
 
-        training_dataframe, testing_dataframe = train_test_split(original_dataframe,
-                                                                 stratify=original_dataframe[label_column],
-                                                                 test_size=test_size,
-                                                                 random_state=random_seed)
+        training_validation_dataframe, testing_dataframe = train_test_split(original_dataframe,
+                                                                            stratify=original_dataframe[label_column],
+                                                                            test_size=test_size,
+                                                                            random_state=random_seed)
 
-        training_dataframe = self.upsample_minority(training_dataframe, label_column, random_seed)
+        training_validation_dataframe = self.upsample_minority(training_validation_dataframe, label_column, random_seed)
+        training_dataframe, validation_dataframe = train_test_split(training_validation_dataframe,
+                                                                    stratify=training_validation_dataframe[
+                                                                        label_column],
+                                                                    test_size=self.validation_size,
+                                                                    random_state=random_seed)
         training_dataframe.to_csv(self.training_csv_file, index=False)
-        logging.info("Training data file created at {}".format(self.training_csv_file))
-        testing_dataframe.to_csv(self.testing_csv_file, index=False)
-        logging.info("Testing data file created at {}".format(self.testing_csv_file))
+        logging.info("Training data file created at {} - {} records".format(self.training_csv_file,
+                                                                            len(training_dataframe)))
+        validation_dataframe.to_csv(self.validation_csv_file, index=False)
+        logging.info("Validation data file created at {} - {} records".format(self.validation_csv_file,
+                                                                              len(validation_dataframe)))
 
-        command = self.training_command.format(self.python_script, self.training_csv_file, self.testing_csv_file)
+        testing_dataframe.to_csv(self.testing_csv_file, index=False)
+        logging.info("Testing data file created at {} - {} records".format(self.testing_csv_file,
+                                                                           len(testing_dataframe)))
+
+        command = self.training_command.format(self.python_script, self.training_csv_file, self.validation_csv_file)
         logging.info("Running {}".format(command))
         exit_code = call(command, shell=True)
         logging.info("exit_code {}".format(exit_code))
