@@ -3,3 +3,5 @@ scikit-learn~=0.20.3
 pandas~=0.24.2
 numpy~=1.16.6
 matplotlib~=2.2.3
+tensorflow~=1.14.0
+pynetlogo~=0.4.2
