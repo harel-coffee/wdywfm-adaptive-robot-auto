@@ -4,6 +4,7 @@ import pandas as pd
 from typing import List
 
 import matplotlib.pyplot as plt
+import seaborn as sns
 from scipy.stats import mannwhitneyu
 
 TURTLE_PRESENT_REPORTER = "count turtles"  # type:str
@@ -60,20 +61,33 @@ def start_experiments(netlogo_home, netlogo_version, model_file, gui=True):
     print("Data written to {}".format(RESULTS_CSV_FILE))
 
 
-def analyse_results():
-    figure, axes = plt.subplots()
+def plot_results(results_dataframe):
+    # type: (pd.DataFrame) -> None
 
-    results_dataframe = pd.read_csv(RESULTS_CSV_FILE)  # type: pd.DataFrame
+    _ = sns.violinplot(data=results_dataframe)
+    plt.show()
+    _ = sns.stripplot(data=results_dataframe, jitter=True)
+    plt.show()
+
+
+def analyse_results():
+    results_dataframe = pd.read_csv(RESULTS_CSV_FILE, index_col=[0])  # type: pd.DataFrame
     results_dataframe = results_dataframe.dropna()
+
+    plot_results(results_dataframe)
 
     evacuation_no_support = results_dataframe[NO_SUPPORT_COLUMN].values  # type: List[float]
     evacuation_staff_support = results_dataframe[ONLY_STAFF_SUPPORT_COLUMN].values  # type: List[float]
     print(
-        "np.mean(evacuation_no_support) = {} np.std(evacuation_no_support) = {}".format(np.mean(evacuation_no_support),
-                                                                                        np.std(evacuation_no_support)))
-    print("np.mean(evacuation_staff_support) = {} np.std(evacuation_staff_support) = {}".format(
-        np.mean(evacuation_staff_support),
-        np.std(evacuation_staff_support)))
+        "np.mean(evacuation_no_support) = {} np.std(evacuation_no_support) = {}"
+        " len(evacuation_no_support)={}".format(np.mean(evacuation_no_support),
+                                                np.std(evacuation_no_support),
+                                                len(evacuation_no_support)))
+    print(
+        "np.mean(evacuation_staff_support) = {} np.std(evacuation_staff_support) = {} "
+        "len(evacuation_staff_support) = {}".format(np.mean(evacuation_staff_support),
+                                                    np.std(evacuation_staff_support),
+                                                    len(evacuation_staff_support)))
 
     null_hypothesis = "The distribution of {} times is THE SAME as the distribution of {} times".format(
         NO_SUPPORT_COLUMN, ONLY_STAFF_SUPPORT_COLUMN)  # type: str
@@ -85,18 +99,6 @@ def analyse_results():
         print("FAILS TO REJECT: {}".format(null_hypothesis))
     else:
         print("REJECT: {}".format(null_hypothesis))
-
-    _ = axes.violinplot([evacuation_no_support,
-                         evacuation_staff_support], showmeans=True)
-    axes.set_ylabel("Evacuation Time")
-
-    labels = ["no-support", "staff-support"]  # List[str]
-    axes.xaxis.set_tick_params(direction='out')
-    axes.xaxis.set_ticks_position('bottom')
-    axes.set_xticks(np.arange(1, len(labels) + 1))
-    axes.set_xlim(0.25, len(labels) + 0.75)
-
-    plt.show()
 
 
 if __name__ == "__main__":
