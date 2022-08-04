@@ -1,11 +1,23 @@
 import pyNetLogo
+import pandas as pd
+
+TURTLE_PRESENT_REPORTER = "count turtles"
+EVACUATED_REPORTER = "number_passengers - count agents + 1"
+DEAD_REPORTER = "count agents with [ st_dead = 1 ]"
 
 
 def run_simulation(netlogo_link):
+    # type: (pyNetLogo.NetLogoLink) -> float
     netlogo_link.command("setup")
-    evacuation_time = netlogo_link.repeat_report(netlogo_reporter="current_time",
-                                                 reps=2000)
-    print(evacuation_time)
+    metrics_dataframe = netlogo_link.repeat_report(
+        netlogo_reporter=[TURTLE_PRESENT_REPORTER, EVACUATED_REPORTER, DEAD_REPORTER], reps=2000)  # type: pd.DataFrame
+
+    print(metrics_dataframe)
+
+    evacuation_finished = metrics_dataframe[
+        metrics_dataframe[TURTLE_PRESENT_REPORTER] == metrics_dataframe[DEAD_REPORTER]]
+
+    evacuation_time = evacuation_finished.index.min()  # type: float
 
     return evacuation_time
 
@@ -16,7 +28,8 @@ def main(netlogo_home, netlogo_version, model_file):
                                          gui=True)
     netlogo_link.load_model(model_file)
 
-    run_simulation(netlogo_link)
+    evacuation_time = run_simulation(netlogo_link)  # type:float
+    print("evacuation_time {0}".format(evacuation_time))
 
 
 if __name__ == "__main__":
