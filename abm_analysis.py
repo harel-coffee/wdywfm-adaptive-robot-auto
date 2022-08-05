@@ -13,12 +13,14 @@ EVACUATED_REPORTER = "number_passengers - count agents + 1"  # type:str
 DEAD_REPORTER = "count agents with [ st_dead = 1 ]"  # type:str
 
 ENABLE_STAFF_COMMAND = "set REQUEST_STAFF_SUPPORT TRUE"  # type:str
+ENABLE_PASSENGER_COMMAND = "set REQUEST_BYSTANDER_SUPPORT TRUE"
 
-RESULTS_CSV_FILE = "data/experiment_results.csv"  # type:str
+RESULTS_CSV_FILE = "data/experiment_results_nosupport_support.csv"  # type:str
 NO_SUPPORT_COLUMN = "no-support"  # type:str
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
+ONLY_PASSENGER_SUPPORT_COLUMN = "passenger-support"  # type:str
 
-SAMPLES = 50  # type:int
+SAMPLES = 400  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -71,11 +73,11 @@ def start_experiments(netlogo_home, netlogo_version, model_file, gui=True):
 
     no_support_times = [run_simulation(netlogo_link)
                         for _ in range(SAMPLES)]  # type:List[float]
-    staff_support_times = [run_simulation(netlogo_link, post_setup_command=ENABLE_STAFF_COMMAND)
-                           for _ in range(SAMPLES)]  # type:List[float]
+    support_times = [run_simulation(netlogo_link, post_setup_command=ENABLE_PASSENGER_COMMAND)
+                     for _ in range(SAMPLES)]  # type:List[float]
 
-    experiment_results = pd.DataFrame(data=list(zip(no_support_times, staff_support_times)),
-                                      columns=[NO_SUPPORT_COLUMN, ONLY_STAFF_SUPPORT_COLUMN])  # type:pd.DataFrame
+    experiment_results = pd.DataFrame(data=list(zip(no_support_times, support_times)),
+                                      columns=[NO_SUPPORT_COLUMN, ONLY_PASSENGER_SUPPORT_COLUMN])  # type:pd.DataFrame
 
     experiment_results.to_csv(RESULTS_CSV_FILE)
     print("Data written to {}".format(RESULTS_CSV_FILE))
@@ -100,25 +102,25 @@ def analyse_results():
     mean_no_support = np.mean(evacuation_no_support).item()  # type:float
     std_dev_no_support = np.std(evacuation_no_support).item()  # type:float
 
-    evacuation_staff_support = results_dataframe[ONLY_STAFF_SUPPORT_COLUMN].values  # type: List[float]
-    mean_staff_support = np.mean(evacuation_staff_support).item()  # type:float
-    std_dev_staff_support = np.std(evacuation_staff_support).item()  # type:float
+    evacuation_with_support = results_dataframe[ONLY_PASSENGER_SUPPORT_COLUMN].values  # type: List[float]
+    mean_staff_support = np.mean(evacuation_with_support).item()  # type:float
+    std_dev_staff_support = np.std(evacuation_with_support).item()  # type:float
 
     print(
         "np.mean(evacuation_no_support) = {} np.std(evacuation_no_support) = {}"
         " len(evacuation_no_support)={}".format(mean_no_support, std_dev_no_support, len(evacuation_no_support)))
     print(
-        "np.mean(evacuation_staff_support) = {} np.std(evacuation_staff_support) = {} "
-        "len(evacuation_staff_support) = {}".format(mean_staff_support, std_dev_staff_support,
-                                                    len(evacuation_staff_support)))
+        "np.mean(evacuation_with_support) = {} np.std(evacuation_with_support) = {} "
+        "len(evacuation_with_support) = {}".format(mean_staff_support, std_dev_staff_support,
+                                                    len(evacuation_with_support)))
     print("Sample size: {}".format(
         calculate_sample_size(mean_no_support, mean_staff_support, std_dev_no_support, std_dev_staff_support)))
 
     null_hypothesis = "The distribution of {} times is THE SAME as the distribution of {} times".format(
-        NO_SUPPORT_COLUMN, ONLY_STAFF_SUPPORT_COLUMN)  # type: str
+        NO_SUPPORT_COLUMN, ONLY_PASSENGER_SUPPORT_COLUMN)  # type: str
 
     threshold = 0.05  # type:float
-    u, p_value = mannwhitneyu(x=evacuation_no_support, y=evacuation_staff_support)
+    u, p_value = mannwhitneyu(x=evacuation_no_support, y=evacuation_with_support)
     print("U={} , p={}".format(u, p_value))
     if p_value > threshold:
         print("FAILS TO REJECT: {}".format(null_hypothesis))
