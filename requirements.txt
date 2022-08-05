@@ -7,3 +7,5 @@ tensorflow~=1.14.0
 pynetlogo~=0.4.2
 typing~=3.7.4.1
 scipy~=1.2.1
+seaborn~=0.9.1
+statsmodels~=0.10.1
