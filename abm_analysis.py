@@ -6,6 +6,7 @@ from typing import List
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import mannwhitneyu
+import statsmodels.api as sm
 
 TURTLE_PRESENT_REPORTER = "count turtles"  # type:str
 EVACUATED_REPORTER = "number_passengers - count agents + 1"  # type:str
@@ -17,11 +18,30 @@ RESULTS_CSV_FILE = "data/experiment_results.csv"  # type:str
 NO_SUPPORT_COLUMN = "no-support"  # type:str
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
 
-SAMPLES = 250  # type:int
+SAMPLES = 50  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
 # And https://www.statology.org/pooled-standard-deviation-calculator/
+
+
+# function to calculate Cohen's d for independent samples
+# Inspired by: https://machinelearningmastery.com/effect-size-measures-in-python/
+def cohen_d_from_metrics(mean_1, mean_2, std_dev_1, std_dev_2):
+    # type: (float, float, float, float) -> float
+    pooled_std_dev = np.sqrt((std_dev_1 ** 2 + std_dev_2 ** 2) / 2)
+    return (mean_1 - mean_2) / pooled_std_dev
+
+
+def calculate_sample_size(mean_1, mean_2, std_dev_1, std_dev_2, alpha=0.05, power=0.8):
+    # type: (float, float, float, float, float, float) -> float
+    analysis = sm.stats.TTestIndPower()  # type: sm.stats.TTestIndPower
+    effect_size = cohen_d_from_metrics(mean_1, mean_2, std_dev_1, std_dev_2)
+    result = analysis.solve_power(effect_size=effect_size,
+                                  alpha=alpha,
+                                  power=power,
+                                  alternative="two-sided")
+    return result
 
 
 def run_simulation(netlogo_link, post_setup_command=""):
@@ -77,17 +97,22 @@ def analyse_results():
     plot_results(results_dataframe)
 
     evacuation_no_support = results_dataframe[NO_SUPPORT_COLUMN].values  # type: List[float]
+    mean_no_support = np.mean(evacuation_no_support).item()  # type:float
+    std_dev_no_support = np.std(evacuation_no_support).item()  # type:float
+
     evacuation_staff_support = results_dataframe[ONLY_STAFF_SUPPORT_COLUMN].values  # type: List[float]
+    mean_staff_support = np.mean(evacuation_staff_support).item()  # type:float
+    std_dev_staff_support = np.std(evacuation_staff_support).item()  # type:float
+
     print(
         "np.mean(evacuation_no_support) = {} np.std(evacuation_no_support) = {}"
-        " len(evacuation_no_support)={}".format(np.mean(evacuation_no_support),
-                                                np.std(evacuation_no_support),
-                                                len(evacuation_no_support)))
+        " len(evacuation_no_support)={}".format(mean_no_support, std_dev_no_support, len(evacuation_no_support)))
     print(
         "np.mean(evacuation_staff_support) = {} np.std(evacuation_staff_support) = {} "
-        "len(evacuation_staff_support) = {}".format(np.mean(evacuation_staff_support),
-                                                    np.std(evacuation_staff_support),
+        "len(evacuation_staff_support) = {}".format(mean_staff_support, std_dev_staff_support,
                                                     len(evacuation_staff_support)))
+    print("Sample size: {}".format(
+        calculate_sample_size(mean_no_support, mean_staff_support, std_dev_no_support, std_dev_staff_support)))
 
     null_hypothesis = "The distribution of {} times is THE SAME as the distribution of {} times".format(
         NO_SUPPORT_COLUMN, ONLY_STAFF_SUPPORT_COLUMN)  # type: str
@@ -106,7 +131,7 @@ if __name__ == "__main__":
     netlogo_directory = "/home/cgc87/netlogo-5.3.1-64"
     version = "5"
 
-    # start_experiments(netlogo_directory, version, netlogo_model, gui=False)
+    start_experiments(netlogo_directory, version, netlogo_model, gui=False)
 
     plt.style.use('seaborn-darkgrid')
     analyse_results()
