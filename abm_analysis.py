@@ -1,11 +1,12 @@
 import multiprocessing
 import time
+import traceback
 from multiprocessing import Pool
 
 import numpy as np
 import pyNetLogo
 import pandas as pd
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -28,7 +29,7 @@ NO_SUPPORT_COLUMN = "no-support"  # type:str
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
 ONLY_PASSENGER_SUPPORT_COLUMN = "passenger-support"  # type:str
 
-SAMPLES = 5  # type:int
+SAMPLES = 30  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -56,24 +57,30 @@ def calculate_sample_size(mean_1, mean_2, std_dev_1, std_dev_2, alpha=0.05, powe
 
 
 def run_simulation(run_id, post_setup_command):
-    # type: (int, str) -> float
-    netlogo_link.command("setup")
-    if post_setup_command:
-        netlogo_link.command(post_setup_command)
-        print("{} {} executed".format(run_id, post_setup_command))
-    else:
-        print("{} no post-setup command".format(run_id))
+    # type: (int, str) -> Optional[float]
+    try:
+        netlogo_link.command("setup")
+        if post_setup_command:
+            netlogo_link.command(post_setup_command)
+            print("{} {} executed".format(run_id, post_setup_command))
+        else:
+            print("{} no post-setup command".format(run_id))
 
-    metrics_dataframe = netlogo_link.repeat_report(
-        netlogo_reporter=[TURTLE_PRESENT_REPORTER, EVACUATED_REPORTER, DEAD_REPORTER], reps=2000)  # type: pd.DataFrame
+        metrics_dataframe = netlogo_link.repeat_report(
+            netlogo_reporter=[TURTLE_PRESENT_REPORTER, EVACUATED_REPORTER, DEAD_REPORTER],
+            reps=2000)  # type: pd.DataFrame
 
-    evacuation_finished = metrics_dataframe[
-        metrics_dataframe[TURTLE_PRESENT_REPORTER] == metrics_dataframe[DEAD_REPORTER]]
+        evacuation_finished = metrics_dataframe[
+            metrics_dataframe[TURTLE_PRESENT_REPORTER] == metrics_dataframe[DEAD_REPORTER]]
 
-    evacuation_time = evacuation_finished.index.min()  # type: float
-    print("{} evacuation time {}".format(run_id, evacuation_time))
+        evacuation_time = evacuation_finished.index.min()  # type: float
+        print("{} evacuation time {}".format(run_id, evacuation_time))
 
-    return evacuation_time
+        return evacuation_time
+    except Exception:
+        traceback.print_exc()
+
+    return None
 
 
 def initialize(gui):
@@ -118,7 +125,8 @@ def run_parallel_simulations(samples, post_setup_command, gui=False):
 
     for simulation_output in executor.map(func=run_simulation_with_dict,
                                           iterable=simulation_parameters):
-        results.append(simulation_output)
+        if simulation_output:
+            results.append(simulation_output)
 
     executor.close()
     executor.join()
