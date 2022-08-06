@@ -1,12 +1,20 @@
+import multiprocessing
+import time
+from multiprocessing import Pool
+
 import numpy as np
 import pyNetLogo
 import pandas as pd
-from typing import List
+from typing import List, Tuple, Dict
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import mannwhitneyu
 import statsmodels.api as sm
+
+MODEL_FILE = "/home/cgc87/github/robot-assisted-evacuation/impact2.10.7/v2.11.0.nlogo"  # type:str
+NETLOGO_HOME = "/home/cgc87/netlogo-5.3.1-64"  # type:str
+NETLOGO_VERSION = "5"  # type:str
 
 TURTLE_PRESENT_REPORTER = "count turtles"  # type:str
 EVACUATED_REPORTER = "number_passengers - count agents + 1"  # type:str
@@ -20,7 +28,7 @@ NO_SUPPORT_COLUMN = "no-support"  # type:str
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
 ONLY_PASSENGER_SUPPORT_COLUMN = "passenger-support"  # type:str
 
-SAMPLES = 400  # type:int
+SAMPLES = 5  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -29,6 +37,7 @@ SAMPLES = 400  # type:int
 
 # function to calculate Cohen's d for independent samples
 # Inspired by: https://machinelearningmastery.com/effect-size-measures-in-python/
+
 def cohen_d_from_metrics(mean_1, mean_2, std_dev_1, std_dev_2):
     # type: (float, float, float, float) -> float
     pooled_std_dev = np.sqrt((std_dev_1 ** 2 + std_dev_2 ** 2) / 2)
@@ -46,12 +55,14 @@ def calculate_sample_size(mean_1, mean_2, std_dev_1, std_dev_2, alpha=0.05, powe
     return result
 
 
-def run_simulation(netlogo_link, post_setup_command=""):
-    # type: (pyNetLogo.NetLogoLink, str) -> float
+def run_simulation(run_id, post_setup_command):
+    # type: (int, str) -> float
     netlogo_link.command("setup")
     if post_setup_command:
         netlogo_link.command(post_setup_command)
-        print("{0} executed".format(post_setup_command))
+        print("{} {} executed".format(run_id, post_setup_command))
+    else:
+        print("{} no post-setup command".format(run_id))
 
     metrics_dataframe = netlogo_link.repeat_report(
         netlogo_reporter=[TURTLE_PRESENT_REPORTER, EVACUATED_REPORTER, DEAD_REPORTER], reps=2000)  # type: pd.DataFrame
@@ -60,27 +71,59 @@ def run_simulation(netlogo_link, post_setup_command=""):
         metrics_dataframe[TURTLE_PRESENT_REPORTER] == metrics_dataframe[DEAD_REPORTER]]
 
     evacuation_time = evacuation_finished.index.min()  # type: float
-    print("evacuation time {0}".format(evacuation_time))
+    print("{} evacuation time {}".format(run_id, evacuation_time))
 
     return evacuation_time
 
 
-def start_experiments(netlogo_home, netlogo_version, model_file, gui=True):
-    netlogo_link = pyNetLogo.NetLogoLink(netlogo_home=netlogo_home,
-                                         netlogo_version=netlogo_version,
-                                         gui=gui)  # type: pyNetLogo.NetLogoLink
-    netlogo_link.load_model(model_file)
+def initialize(gui):
+    # type: (bool) -> None
+    global netlogo_link
 
-    no_support_times = [run_simulation(netlogo_link)
-                        for _ in range(SAMPLES)]  # type:List[float]
-    support_times = [run_simulation(netlogo_link, post_setup_command=ENABLE_PASSENGER_COMMAND)
-                     for _ in range(SAMPLES)]  # type:List[float]
+    netlogo_link = pyNetLogo.NetLogoLink(netlogo_home=NETLOGO_HOME,
+                                         netlogo_version=NETLOGO_VERSION,
+                                         gui=gui)  # type: pyNetLogo.NetLogoLink
+    netlogo_link.load_model(MODEL_FILE)
+
+
+def start_experiments():
+    start_time = time.time()  # type: float
+    no_support_times = run_parallel_simulations(SAMPLES, post_setup_command="")  # type:List[float]
+    support_times = run_parallel_simulations(SAMPLES, post_setup_command=ENABLE_PASSENGER_COMMAND)  # type:List[float]
 
     experiment_results = pd.DataFrame(data=list(zip(no_support_times, support_times)),
                                       columns=[NO_SUPPORT_COLUMN, ONLY_PASSENGER_SUPPORT_COLUMN])  # type:pd.DataFrame
+    end_time = time.time()  # type: float
+    print("Simulation finished after {} seconds".format(end_time - start_time))
 
     experiment_results.to_csv(RESULTS_CSV_FILE)
     print("Data written to {}".format(RESULTS_CSV_FILE))
+
+
+def run_simulation_with_dict(dict_parameters):
+    # type: (Dict) -> float
+    return run_simulation(**dict_parameters)
+
+
+def run_parallel_simulations(samples, post_setup_command, gui=False):
+    # type: (int, str, bool) -> List[float]
+
+    initialise_arguments = (gui,)  # type: Tuple
+    simulation_parameters = [{"run_id": run_id, "post_setup_command": post_setup_command}
+                             for run_id in range(samples)]  # type: List[Dict]
+
+    results = []  # type: List[float]
+    executor = Pool(initializer=initialize,
+                    initargs=initialise_arguments)  # type: multiprocessing.pool.Pool
+
+    for simulation_output in executor.map(func=run_simulation_with_dict,
+                                          iterable=simulation_parameters):
+        results.append(simulation_output)
+
+    executor.close()
+    executor.join()
+
+    return results
 
 
 def plot_results(results_dataframe):
@@ -112,7 +155,7 @@ def analyse_results():
     print(
         "np.mean(evacuation_with_support) = {} np.std(evacuation_with_support) = {} "
         "len(evacuation_with_support) = {}".format(mean_staff_support, std_dev_staff_support,
-                                                    len(evacuation_with_support)))
+                                                   len(evacuation_with_support)))
     print("Sample size: {}".format(
         calculate_sample_size(mean_no_support, mean_staff_support, std_dev_no_support, std_dev_staff_support)))
 
@@ -129,11 +172,7 @@ def analyse_results():
 
 
 if __name__ == "__main__":
-    netlogo_model = "/home/cgc87/github/robot-assisted-evacuation/impact2.10.7/v2.11.0.nlogo"
-    netlogo_directory = "/home/cgc87/netlogo-5.3.1-64"
-    version = "5"
-
-    start_experiments(netlogo_directory, version, netlogo_model, gui=False)
+    start_experiments()
 
     plt.style.use('seaborn-darkgrid')
     analyse_results()
