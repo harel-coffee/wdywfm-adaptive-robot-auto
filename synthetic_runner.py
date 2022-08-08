@@ -1,19 +1,25 @@
 import logging
 
 import numpy as np
+import pandas as pd
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
 from matplotlib import pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
+from typing import Tuple, Type, Optional
 
 from analyser import SyntheticTypeAnalyser
 from controller import ProSelfRobotController, AutonomicManagerController, ProSocialRobotController
 from environment import EmergencyEvacuationEnvironment
 from samplegame import PERSONAL_IDENTITY_TYPE, GROUP_IDENTITY_TYPE
 
-SEED = 0
-NUM_SCENARIOS = 10
-INTERACTIONS_PER_SCENARIO = 10
+SEED = 0  # type:int
+NUM_SCENARIOS = 10  # type:int
+INTERACTIONS_PER_SCENARIO = 10  # type:int
+
+NETLOGO_DATA_FILE = "data/request-for-help-results.csv"  # type:str
+REQUEST_RESULT_COLUMN = "offer-help"  # type:str
 
 TYPE_TO_CLASS = {
     PERSONAL_IDENTITY_TYPE: 0,
@@ -41,7 +47,7 @@ class EarlyStoppingByTarget(Callback):
             self.model.stop_training = True
 
 
-def get_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples):
+def get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples):
     features, target = make_classification(n_samples=total_samples,
                                            n_features=100,
                                            n_informative=3,
@@ -51,6 +57,16 @@ def get_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples):
                                            random_state=0)
 
     return features, target
+
+
+def get_netlogo_dataset(data_file):
+    # type:(str) -> Tuple[np.ndarray, np.ndarray]
+    netlogo_dataframe = pd.read_csv(data_file)  # type: pd.DataFrame
+
+    sensor_data = netlogo_dataframe.drop(REQUEST_RESULT_COLUMN, axis=1)  # type: pd.DataFrame
+    person_type = netlogo_dataframe[REQUEST_RESULT_COLUMN]  # type: pd.DataFrame
+
+    return sensor_data.values, person_type.values
 
 
 def plot_training(training_history, metric):
@@ -68,24 +84,46 @@ def plot_training(training_history, metric):
     plt.show()
 
 
+def under_sample(first_index, second_index, original_features, original_classes):
+    # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray) -> Tuple[np.ndarray,np.ndarray]
+
+    majority_index = first_index  # type: np.ndarray
+    minority_index = second_index  # type: np.ndarray
+
+    if len(majority_index) < len(minority_index):
+        majority_index, minority_index = minority_index, majority_index
+
+    majority_sample_index = np.random.choice(majority_index, size=len(minority_index),
+                                             replace=False)  # type: np.ndarray
+
+    under_sampled_features = np.vstack(
+        (original_features[majority_sample_index, :], original_features[minority_index, :]))  # type: np.ndarray
+    under_sampled_classes = np.hstack(
+        (original_classes[majority_sample_index], original_classes[minority_index]))  # type: np.ndarray
+
+    under_sampled_features, under_sampled_classes = shuffle(under_sampled_features, under_sampled_classes)
+    return under_sampled_features, under_sampled_classes
+
+
 def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, epochs=100):
+    # type: (np.ndarray, np.ndarray, int, Optional[float], int) -> SyntheticTypeAnalyser
+
     logging.info("Training data: : %.4f" % len(sensor_data_train))
     _, num_features = sensor_data_train.shape
-    type_analyser = SyntheticTypeAnalyser(num_features)
+    type_analyser = SyntheticTypeAnalyser(num_features)  # type: SyntheticTypeAnalyser
 
-    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[GROUP_IDENTITY_TYPE])[0]
-    selfish_index = np.where(person_type_train == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]
+    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[GROUP_IDENTITY_TYPE])[0]  # type: np.ndarray
+    selfish_index = np.where(person_type_train == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]  # type: np.ndarray
 
     logging.info("Training data -> Zero-responders: %d" % len(zero_responder_index))
     logging.info("Training data -> Selfish: %d" % len(selfish_index))
 
-    if len(zero_responder_index) > len(selfish_index):
-        logging.info("Imbalanced dataset favouring zero-responders. Undersampling...")
-        zeroresponder_sample_index = np.random.choice(zero_responder_index, size=len(selfish_index), replace=False)
-
-        sensor_data_train = np.vstack(
-            (sensor_data_train[zeroresponder_sample_index, :], sensor_data_train[selfish_index, :]))
-        person_type_train = np.hstack((person_type_train[zeroresponder_sample_index], person_type_train[selfish_index]))
+    if len(zero_responder_index) != len(selfish_index):
+        logging.info("Imbalanced dataset. Undersampling...")
+        sensor_data_train, person_type_train = under_sample(first_index=zero_responder_index,
+                                                            second_index=selfish_index,
+                                                            original_features=sensor_data_train,
+                                                            original_classes=person_type_train)
 
     validation_accuracy_monitor = 'val_acc'
     if target_accuracy is not None:
@@ -94,7 +132,7 @@ def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_a
                                                         verbose=1)
     else:
         logging.info("Training for best accuracy")
-        early_stopping_callback = EarlyStopping(monitor=validation_accuracy_monitor, patience=20)
+        early_stopping_callback = EarlyStopping(monitor=validation_accuracy_monitor, patience=int(epochs * 0.2))
     callbacks = [early_stopping_callback,
                  ModelCheckpoint(filepath="trained_model.h5", monitor=validation_accuracy_monitor, save_best_only=True)]
 
@@ -143,13 +181,15 @@ def main():
     selfish_type_weight = 1 - zeroresponder_type_weight
     # target_accuracy = 0.65
     target_accuracy = None
-    max_epochs = 200
+    max_epochs = 5000
     interactions_per_scenario = INTERACTIONS_PER_SCENARIO
     total_samples = 10000
     training_batch_size = 100
     num_scenarios = NUM_SCENARIOS
 
-    sensor_data, person_type = get_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples)
+    # sensor_data, person_type = get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples)
+
+    sensor_data, person_type = get_netlogo_dataset(NETLOGO_DATA_FILE)
     sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
                                                                                                 person_type,
                                                                                                 test_size=0.33,
@@ -161,10 +201,10 @@ def main():
     # robot_controller = PessimisticRobotController()
     # robot_controller = OptimisticRobotController()
 
-    emergency_environment = EmergencyEvacuationEnvironment(sensor_data_test, person_type_test,
-                                                           interactions_per_scenario)
-
-    _ = run_scenario(robot_controller, emergency_environment, num_scenarios)
+    # emergency_environment = EmergencyEvacuationEnvironment(sensor_data_test, person_type_test,
+    #                                                        interactions_per_scenario)
+    #
+    # _ = run_scenario(robot_controller, emergency_environment, num_scenarios)
 
 
 if __name__ == "__main__":

@@ -7,10 +7,12 @@ import pandas as pd
 from imblearn.over_sampling import RandomOverSampler
 from keras import layers
 from keras import models
+from keras.callbacks import History
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.utils import resample
+from typing import List
 
 from environment import GROUP_IDENTITY_CLASS
 
@@ -24,9 +26,11 @@ class SyntheticTypeAnalyser(object):
         self.network.add(layers.Dense(units=16, activation="relu"))
         self.network.add(layers.Dense(units=1, activation="sigmoid"))
 
-        self.network.compile(loss="binary_crossentropy", optimizer="rmsprop", metrics=["accuracy"])
+        self.network.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
 
     def train(self, sensor_data, person_type, epochs, batch_size, callbacks=None):
+        # type: (np.ndarray, np.ndarray, int, int, List) -> History
+
         training_history = self.network.fit(sensor_data,
                                             person_type,
                                             epochs=epochs,
@@ -89,7 +93,7 @@ class TunedTransformerTypeAnalyser(object):
         self.validation_csv_file = "validation_data.csv"
         self.validation_size = 0.4
 
-        self.prefix = 'conda run -n p36-wdywfm-adaptive-robot '
+        self.prefix = 'conda run -n wdywfm-adaptive-robot-p36 '
         self.python_script = '../transformer-type-estimator/transformer_analyser.py'
         self.training_command = self.prefix + 'python {} --trainlocal --train_csv "{}" --test_csv "{}"'
         self.prediction_command = self.prefix + 'python {} --predlocal --input_text "{}"'
