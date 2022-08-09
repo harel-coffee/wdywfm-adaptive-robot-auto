@@ -6,6 +6,7 @@ from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
 from matplotlib import pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils import shuffle
 from typing import Tuple, Type, Optional
 
@@ -18,7 +19,7 @@ SEED = 0  # type:int
 NUM_SCENARIOS = 10  # type:int
 INTERACTIONS_PER_SCENARIO = 10  # type:int
 
-NETLOGO_DATA_FILE = "data/request-for-help-results.csv"  # type:str
+NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
 REQUEST_RESULT_COLUMN = "offer-help"  # type:str
 
 TYPE_TO_CLASS = {
@@ -61,7 +62,11 @@ def get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_
 
 def get_netlogo_dataset(data_file):
     # type:(str) -> Tuple[np.ndarray, np.ndarray]
-    netlogo_dataframe = pd.read_csv(data_file)  # type: pd.DataFrame
+
+    dataframes = [pd.read_csv("data/{}_{}.csv".format(NETLOGO_DATA_FILE_PREFIX, dataframe_index))
+                  for dataframe_index in range(1, 3)]  # type: List[pd.DataFrame]
+
+    netlogo_dataframe = pd.concat(dataframes, axis=0)  # type: pd.DataFrame
 
     sensor_data = netlogo_dataframe.drop(REQUEST_RESULT_COLUMN, axis=1)  # type: pd.DataFrame
     person_type = netlogo_dataframe[REQUEST_RESULT_COLUMN]  # type: pd.DataFrame
@@ -105,12 +110,20 @@ def under_sample(first_index, second_index, original_features, original_classes)
     return under_sampled_features, under_sampled_classes
 
 
-def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, epochs=100):
-    # type: (np.ndarray, np.ndarray, int, Optional[float], int) -> SyntheticTypeAnalyser
+def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, encode_categorical_data,
+                      epochs=100, metric="binary_crossentropy"):
+    # type: (np.ndarray, np.ndarray, int, Optional[float], bool, int, str) -> SyntheticTypeAnalyser
 
-    logging.info("Training data: : %.4f" % len(sensor_data_train))
+    if encode_categorical_data:
+        logging.info("Encoding categorical features...")
+        encoder = OneHotEncoder(sparse=False)
+        encoder.fit(sensor_data_train)
+        sensor_data_train = encoder.transform(sensor_data_train)
+
     _, num_features = sensor_data_train.shape
-    type_analyser = SyntheticTypeAnalyser(num_features)  # type: SyntheticTypeAnalyser
+    logging.info("Training data shape: : {}".format(sensor_data_train.shape))
+
+    type_analyser = SyntheticTypeAnalyser(num_features, metric)  # type: SyntheticTypeAnalyser
 
     zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[GROUP_IDENTITY_TYPE])[0]  # type: np.ndarray
     selfish_index = np.where(person_type_train == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]  # type: np.ndarray
@@ -125,23 +138,23 @@ def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_a
                                                             original_features=sensor_data_train,
                                                             original_classes=person_type_train)
 
-    validation_accuracy_monitor = 'val_acc'
+    early_stopping_monitor = 'val_binary_crossentropy'
     if target_accuracy is not None:
         logging.info("Training for target accuracy %s" % str(target_accuracy))
-        early_stopping_callback = EarlyStoppingByTarget(monitor=validation_accuracy_monitor, target=target_accuracy,
+        early_stopping_callback = EarlyStoppingByTarget(monitor=early_stopping_monitor, target=target_accuracy,
                                                         verbose=1)
     else:
         logging.info("Training for best accuracy")
-        early_stopping_callback = EarlyStopping(monitor=validation_accuracy_monitor, patience=int(epochs * 0.2))
+        early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=int(epochs * 0.2))
     callbacks = [early_stopping_callback,
-                 ModelCheckpoint(filepath="trained_model.h5", monitor=validation_accuracy_monitor, save_best_only=True)]
+                 ModelCheckpoint(filepath="trained_model.h5", monitor=early_stopping_monitor, save_best_only=True)]
 
     training_history = type_analyser.train(sensor_data_train,
                                            person_type_train,
                                            epochs,
                                            batch_size,
                                            callbacks)
-    plot_training(training_history, "acc")
+    plot_training(training_history, metric)
 
     return type_analyser
 
@@ -181,7 +194,8 @@ def main():
     selfish_type_weight = 1 - zeroresponder_type_weight
     # target_accuracy = 0.65
     target_accuracy = None
-    max_epochs = 5000
+    max_epochs = 100  # type: int
+    encode_categorical_data = True  # type: bool
     interactions_per_scenario = INTERACTIONS_PER_SCENARIO
     total_samples = 10000
     training_batch_size = 100
@@ -189,14 +203,14 @@ def main():
 
     # sensor_data, person_type = get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples)
 
-    sensor_data, person_type = get_netlogo_dataset(NETLOGO_DATA_FILE)
+    sensor_data, person_type = get_netlogo_dataset(NETLOGO_DATA_FILE_PREFIX)
     sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
                                                                                                 person_type,
                                                                                                 test_size=0.33,
                                                                                                 random_state=0)
 
     type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
-                                      max_epochs)
+                                      encode_categorical_data, max_epochs)
     robot_controller = AutonomicManagerController(type_analyser)
     # robot_controller = PessimisticRobotController()
     # robot_controller = OptimisticRobotController()
