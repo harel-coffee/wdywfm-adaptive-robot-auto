@@ -1,6 +1,9 @@
 import logging
 
 import gambit
+from gambit import Rational
+from gambit.nash import NashSolution
+from typing import Dict, List, Tuple, Any, Optional
 
 ROBOT_PLAYER_INDEX = 0
 PERSON_PLAYER_INDEX = 1
@@ -18,14 +21,16 @@ class InteractionGame(object):
 
         self.person_player = self.game_tree.players.add("Person")
         self.person_types = []
-        self.person_response_infosets = {}
-        self.person_responses = {}
+        self.person_response_infosets = {}  # type: Dict[Tuple[str, str], Any]
+        self.person_responses = {}  # type: Dict[Tuple[str, str], Any]
 
         self.game_tree_root = self.game_tree.root
-        self.type_nodes_per_label = {}
-        self.robot_action_index_per_label = {}
+        self.type_nodes_per_label = {}  # type: Dict[str, Any]
+        self.robot_action_index_per_label = {}  # type: Dict[str, int]
 
     def configure_types(self, epistemic_types):
+        # type: (List[Tuple[str, Tuple]]) -> None
+
         chance_move = self.game_tree_root.append_move(self.game_tree.players.chance, len(epistemic_types))
         self.person_types = epistemic_types
 
@@ -38,6 +43,8 @@ class InteractionGame(object):
             self.type_nodes_per_label[description] = self.game_tree_root.children[index]
 
     def set_first_contact_actions(self, robot_actions):
+        # type: (List[str]) -> None
+
         self.robot_actions = robot_actions
         first_type_node = self.game_tree_root.children[0]
 
@@ -53,11 +60,28 @@ class InteractionGame(object):
             type_node = self.game_tree_root.children[node_index]
             type_node.append_move(self.robot_firstcontact_infoset)
 
-    def configure_person_response(self, person_type, robot_action, responses):
-        type_node = self.type_nodes_per_label[person_type]
-        robot_action_index = self.robot_action_index_per_label[robot_action]
+    def configure_final_outcome(self, person_type, robot_action, payoffs):
+        # type: (str, str, Tuple[Rational, Rational]) -> None
 
+        robot_payoff, person_payoff = payoffs
+
+        type_node = self.type_nodes_per_label[person_type]
+        robot_action_index = self.robot_action_index_per_label[robot_action]  # type: int
+        robot_response_node = type_node.children[robot_action_index]
+
+        outcome = self.game_tree.outcomes.add(self.get_outcome_description(person_type, robot_action))
+        outcome[ROBOT_PLAYER_INDEX] = robot_payoff
+        outcome[PERSON_PLAYER_INDEX] = person_payoff
+
+        robot_response_node.outcome = outcome
+
+    def configure_person_response(self, person_type, robot_action, responses):
+        # type: (str, str, List[Tuple[Optional[str], Rational, Rational]]) -> None
+
+        type_node = self.type_nodes_per_label[person_type]
+        robot_action_index = self.robot_action_index_per_label[robot_action]  # type: int
         person_response_node = type_node.children[robot_action_index]
+
         person_response_infoset = person_response_node.append_move(self.person_player, len(responses))
         self.person_response_infosets[(person_type, robot_action)] = person_response_infoset
         self.person_responses[(person_type, robot_action)] = responses
@@ -76,10 +100,15 @@ class InteractionGame(object):
             action_node.outcome = outcome
 
     @staticmethod
-    def get_outcome_description(person_type, robot_action, person_response):
+    def get_outcome_description(person_type, robot_action, person_response=None):
+        # type: (str, str, Optional[str]) -> str
+
+        if not person_response:
+            person_response = "no_response"
         return person_type + "_" + robot_action + "_" + person_response + "_outcome"
 
     def write(self, filename="game_tree.efg"):
+        # type: (str) -> str
         game_as_efg = self.game_tree.write(format="efg")
         logging.debug(game_as_efg)
 
@@ -90,6 +119,8 @@ class InteractionGame(object):
         return filename
 
     def get_robot_strategy(self, strategy_profile):
+        # type: (NashSolution) -> Dict[str, float]
+
         action_probabilities = strategy_profile[self.robot_firstcontact_infoset]
         strategy = {}
         for action_index, action_probability in enumerate(action_probabilities):

@@ -8,12 +8,12 @@ from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils import shuffle
-from typing import Tuple, Type, Optional
+from typing import Tuple, Type, Optional, List
 
 from analyser import SyntheticTypeAnalyser
 from controller import ProSelfRobotController, AutonomicManagerController, ProSocialRobotController
 from environment import EmergencyEvacuationEnvironment
-from samplegame import PERSONAL_IDENTITY_TYPE, GROUP_IDENTITY_TYPE
+from gamemodels import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 
 SEED = 0  # type:int
 NUM_SCENARIOS = 10  # type:int
@@ -24,7 +24,7 @@ REQUEST_RESULT_COLUMN = "offer-help"  # type:str
 
 TYPE_TO_CLASS = {
     PERSONAL_IDENTITY_TYPE: 0,
-    GROUP_IDENTITY_TYPE: 1
+    SHARED_IDENTITY_TYPE: 1
 }
 
 
@@ -60,11 +60,11 @@ def get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_
     return features, target
 
 
-def get_netlogo_dataset(data_file):
-    # type:(str) -> Tuple[np.ndarray, np.ndarray]
+def get_netlogo_dataset():
+    # type:() -> Tuple[np.ndarray, np.ndarray]
 
-    dataframes = [pd.read_csv("data/{}_{}.csv".format(NETLOGO_DATA_FILE_PREFIX, dataframe_index))
-                  for dataframe_index in range(1, 3)]  # type: List[pd.DataFrame]
+    dataframes = [pd.read_csv("data/{}_{}.csv".format(dataframe_index, NETLOGO_DATA_FILE_PREFIX))
+                  for dataframe_index in range(0, 12)]  # type: List[pd.DataFrame]
 
     netlogo_dataframe = pd.concat(dataframes, axis=0)  # type: pd.DataFrame
 
@@ -125,7 +125,7 @@ def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_a
 
     type_analyser = SyntheticTypeAnalyser(num_features, metric)  # type: SyntheticTypeAnalyser
 
-    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[GROUP_IDENTITY_TYPE])[0]  # type: np.ndarray
+    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type: np.ndarray
     selfish_index = np.where(person_type_train == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]  # type: np.ndarray
 
     logging.info("Training data -> Zero-responders: %d" % len(zero_responder_index))
@@ -145,7 +145,7 @@ def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_a
                                                         verbose=1)
     else:
         logging.info("Training for best accuracy")
-        early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=int(epochs * 0.2))
+        early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=int(epochs * 0.02))
     callbacks = [early_stopping_callback,
                  ModelCheckpoint(filepath="trained_model.h5", monitor=early_stopping_monitor, save_best_only=True)]
 
@@ -194,7 +194,7 @@ def main():
     selfish_type_weight = 1 - zeroresponder_type_weight
     # target_accuracy = 0.65
     target_accuracy = None
-    max_epochs = 100  # type: int
+    max_epochs = 10000  # type: int
     encode_categorical_data = True  # type: bool
     interactions_per_scenario = INTERACTIONS_PER_SCENARIO
     total_samples = 10000
@@ -203,7 +203,7 @@ def main():
 
     # sensor_data, person_type = get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples)
 
-    sensor_data, person_type = get_netlogo_dataset(NETLOGO_DATA_FILE_PREFIX)
+    sensor_data, person_type = get_netlogo_dataset()
     sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
                                                                                                 person_type,
                                                                                                 test_size=0.33,

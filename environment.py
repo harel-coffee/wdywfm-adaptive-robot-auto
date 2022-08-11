@@ -4,14 +4,14 @@ import numpy as np
 
 import solver
 from game import ROBOT_PLAYER_INDEX, PERSON_PLAYER_INDEX
-from samplegame import generate_game_model, PERSONAL_IDENTITY_TYPE, GROUP_IDENTITY_TYPE
+from gamemodels import generate_game_model, PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 
 PERSONAL_IDENTITY_CLASS = 0
 GROUP_IDENTITY_CLASS = 1
 
 CLASS_TO_TYPE = {
     PERSONAL_IDENTITY_CLASS: PERSONAL_IDENTITY_TYPE,
-    GROUP_IDENTITY_CLASS: GROUP_IDENTITY_TYPE
+    GROUP_IDENTITY_CLASS: SHARED_IDENTITY_TYPE
 }
 
 
@@ -96,7 +96,7 @@ class EmergencyEvacuationEnvironment(object):
         current_type_class = self.sample_person_type[self.data_index]
         current_person_type = CLASS_TO_TYPE[current_type_class]
 
-        zero_responder_prob = 1. if current_person_type == GROUP_IDENTITY_TYPE else 0.
+        zero_responder_prob = 1. if current_person_type == SHARED_IDENTITY_TYPE else 0.
 
         zero_responder_ratio = zero_responder_prob.as_integer_ratio()
         selfish_ratio = (1 - zero_responder_prob).as_integer_ratio()
