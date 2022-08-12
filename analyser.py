@@ -8,10 +8,12 @@ from imblearn.over_sampling import RandomOverSampler
 from keras import layers
 from keras import models
 from keras.callbacks import History
+from keras.layers import Dropout
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.utils import resample
+from tensorflow.python.keras.models import load_model
 from typing import List
 
 from environment import GROUP_IDENTITY_CLASS
@@ -19,14 +21,21 @@ from environment import GROUP_IDENTITY_CLASS
 
 class SyntheticTypeAnalyser(object):
 
-    def __init__(self, num_features):
-        self.network = models.Sequential()
+    def __init__(self, num_features=0, metric="", model_file=None):
+        if model_file is not None:
+            self.network = load_model(model_file)  # type: models.Sequential
+            logging.info("Model loaded from {}".format(model_file))
+            self.network.summary()
+        else:
+            self.network = models.Sequential()  # type: models.Sequential
 
-        self.network.add(layers.Dense(units=16, activation="relu", input_shape=(num_features,)))
-        self.network.add(layers.Dense(units=16, activation="relu"))
-        self.network.add(layers.Dense(units=1, activation="sigmoid"))
+            self.network.add(layers.Dense(units=num_features, activation="relu", input_shape=(num_features,)))
+            self.network.add(Dropout(rate=0.4))
+            self.network.add(layers.Dense(units=int(num_features / 2), activation="relu"))
+            self.network.add(Dropout(rate=0.4))
+            self.network.add(layers.Dense(units=1, activation="sigmoid"))
 
-        self.network.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
+            self.network.compile(loss="binary_crossentropy", optimizer="adam", metrics=[metric, "accuracy"])
 
     def train(self, sensor_data, person_type, epochs, batch_size, callbacks=None):
         # type: (np.ndarray, np.ndarray, int, int, List) -> History

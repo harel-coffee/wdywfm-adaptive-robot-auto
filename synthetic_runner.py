@@ -1,4 +1,5 @@
 import logging
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -18,6 +19,9 @@ from gamemodels import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 SEED = 0  # type:int
 NUM_SCENARIOS = 10  # type:int
 INTERACTIONS_PER_SCENARIO = 10  # type:int
+
+MODEL_FILE = "trained_model.h5"  # type:str
+ENCODER_FILE = "encoder.pickle"  # type:str
 
 NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
 REQUEST_RESULT_COLUMN = "offer-help"  # type:str
@@ -110,20 +114,33 @@ def under_sample(first_index, second_index, original_features, original_classes)
     return under_sampled_features, under_sampled_classes
 
 
-def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, encode_categorical_data,
-                      epochs=100, metric="binary_crossentropy"):
+def encode_training_data(sensor_data_train):
+    # type: (np.ndarray) -> np.ndarray
+
+    logging.info("Encoding categorical features...")
+    encoder = OneHotEncoder(sparse=False)  # type: OneHotEncoder
+    encoder.fit(sensor_data_train)
+
+    with open(ENCODER_FILE, "wb") as encoder_file:
+        pickle.dump(encoder, encoder_file)
+        logging.info("Encoder saved at {}".format(ENCODER_FILE))
+
+    sensor_data_train = encoder.transform(sensor_data_train)
+
+    return sensor_data_train
+
+
+def train_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, encode_categorical_data,
+                        epochs=100, metric="binary_crossentropy"):
     # type: (np.ndarray, np.ndarray, int, Optional[float], bool, int, str) -> SyntheticTypeAnalyser
 
     if encode_categorical_data:
-        logging.info("Encoding categorical features...")
-        encoder = OneHotEncoder(sparse=False)
-        encoder.fit(sensor_data_train)
-        sensor_data_train = encoder.transform(sensor_data_train)
+        sensor_data_train = encode_training_data(sensor_data_train)
 
     _, num_features = sensor_data_train.shape
     logging.info("Training data shape: : {}".format(sensor_data_train.shape))
 
-    type_analyser = SyntheticTypeAnalyser(num_features, metric)  # type: SyntheticTypeAnalyser
+    type_analyser = SyntheticTypeAnalyser(num_features=num_features, metric=metric)  # type: SyntheticTypeAnalyser
 
     zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type: np.ndarray
     selfish_index = np.where(person_type_train == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]  # type: np.ndarray
@@ -147,7 +164,7 @@ def get_type_analyser(sensor_data_train, person_type_train, batch_size, target_a
         logging.info("Training for best accuracy")
         early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=int(epochs * 0.02))
     callbacks = [early_stopping_callback,
-                 ModelCheckpoint(filepath="trained_model.h5", monitor=early_stopping_monitor, save_best_only=True)]
+                 ModelCheckpoint(filepath=MODEL_FILE, monitor=early_stopping_monitor, save_best_only=True)]
 
     training_history = type_analyser.train(sensor_data_train,
                                            person_type_train,
@@ -200,8 +217,7 @@ def main():
     total_samples = 10000
     training_batch_size = 100
     num_scenarios = NUM_SCENARIOS
-
-    # sensor_data, person_type = get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples)
+    train_analyser = True  # type:bool
 
     sensor_data, person_type = get_netlogo_dataset()
     sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
@@ -209,9 +225,14 @@ def main():
                                                                                                 test_size=0.33,
                                                                                                 random_state=0)
 
-    type_analyser = get_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
-                                      encode_categorical_data, max_epochs)
+    if train_analyser:
+        type_analyser = train_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
+                                            encode_categorical_data, max_epochs)
+    else:
+        type_analyser = SyntheticTypeAnalyser(model_file=MODEL_FILE)
+
     robot_controller = AutonomicManagerController(type_analyser)
+
     # robot_controller = PessimisticRobotController()
     # robot_controller = OptimisticRobotController()
 

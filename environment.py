@@ -1,6 +1,8 @@
 import logging
+import pickle
 
 import numpy as np
+from sklearn.preprocessing import OneHotEncoder
 
 import solver
 from game import ROBOT_PLAYER_INDEX, PERSON_PLAYER_INDEX
@@ -13,6 +15,20 @@ CLASS_TO_TYPE = {
     PERSONAL_IDENTITY_CLASS: PERSONAL_IDENTITY_TYPE,
     GROUP_IDENTITY_CLASS: SHARED_IDENTITY_TYPE
 }
+
+
+class NetlogoEvacuationEnvironment(object):
+
+    def __init__(self, sensor_data, encoder_filename):
+        self.helper_gender = int(sensor_data["helper_gender"])  # type: int
+        self.helper_culture = int(sensor_data["helper_culture"])  # type: int
+        self.helper_age = int(sensor_data["helper_age"])  # type: int
+        self.fallen_gender = int(sensor_data["fallen_gender"])  # type: int
+        self.fallen_culture = int(sensor_data["fallen_culture"])  # type: int
+        self.fallen_age = int(sensor_data["fallen_age"])  # type: int
+
+        with open(encoder_filename, "rb") as encoder_file:
+            self.encoder = pickle.load(encoder_file)  # type: OneHotEncoder
 
 
 class EmergencyEvacuationEnvironment(object):
