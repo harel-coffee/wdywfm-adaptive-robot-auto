@@ -21,15 +21,18 @@ TURTLE_PRESENT_REPORTER = "count turtles"  # type:str
 EVACUATED_REPORTER = "number_passengers - count agents + 1"  # type:str
 DEAD_REPORTER = "count agents with [ st_dead = 1 ]"  # type:str
 
+SET_SIMULATION_ID_COMMAND = "set SIMULATION_ID {}"  # type:str
 ENABLE_STAFF_COMMAND = "set REQUEST_STAFF_SUPPORT TRUE"  # type:str
 ENABLE_PASSENGER_COMMAND = "set REQUEST_BYSTANDER_SUPPORT TRUE"
 
-RESULTS_CSV_FILE = "data/experiment_results_nosupport_support.csv"  # type:str
+RESULTS_CSV_FILE = "data/experiment_results.csv"  # type:str
 NO_SUPPORT_COLUMN = "no-support"  # type:str
+
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
 ONLY_PASSENGER_SUPPORT_COLUMN = "passenger-support"  # type:str
+ADAPTIVE_SUPPORT_COLUMN = "adaptive-support"
 
-SAMPLES = 30  # type:int
+SAMPLES = 12  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -56,15 +59,18 @@ def calculate_sample_size(mean_1, mean_2, std_dev_1, std_dev_2, alpha=0.05, powe
     return result
 
 
-def run_simulation(run_id, post_setup_command):
-    # type: (int, str) -> Optional[float]
+def run_simulation(simulation_id, post_setup_commands):
+    # type: (int, List[str]) -> Optional[float]
     try:
         netlogo_link.command("setup")
-        if post_setup_command:
-            netlogo_link.command(post_setup_command)
-            print("{} {} executed".format(run_id, post_setup_command))
+        netlogo_link.command(SET_SIMULATION_ID_COMMAND.format(simulation_id))
+
+        if len(post_setup_commands) > 0:
+            for post_setup_command in post_setup_commands:
+                netlogo_link.command(post_setup_command)
+                print("{} {} executed".format(simulation_id, post_setup_command))
         else:
-            print("{} no post-setup command".format(run_id))
+            print("{} no post-setup commands".format(simulation_id))
 
         metrics_dataframe = netlogo_link.repeat_report(
             netlogo_reporter=[TURTLE_PRESENT_REPORTER, EVACUATED_REPORTER, DEAD_REPORTER],
@@ -74,7 +80,7 @@ def run_simulation(run_id, post_setup_command):
             metrics_dataframe[TURTLE_PRESENT_REPORTER] == metrics_dataframe[DEAD_REPORTER]]
 
         evacuation_time = evacuation_finished.index.min()  # type: float
-        print("{} evacuation time {}".format(run_id, evacuation_time))
+        print("{} evacuation time {}".format(simulation_id, evacuation_time))
 
         return evacuation_time
     except Exception:
@@ -93,15 +99,18 @@ def initialize(gui):
     netlogo_link.load_model(MODEL_FILE)
 
 
-def start_experiments():
+def start_experiments(first_scenario_name, first_scenario_commands, second_scenario_name, second_scenario_commands):
+    # type: (str, List[str], str, List[str]) -> None
     start_time = time.time()  # type: float
-    no_support_times = run_parallel_simulations(SAMPLES, post_setup_command="")  # type:List[float]
-    support_times = run_parallel_simulations(SAMPLES, post_setup_command=ENABLE_PASSENGER_COMMAND)  # type:List[float]
-
-    experiment_results = pd.DataFrame(data=list(zip(no_support_times, support_times)),
-                                      columns=[NO_SUPPORT_COLUMN, ONLY_PASSENGER_SUPPORT_COLUMN])  # type:pd.DataFrame
+    first_scenario_times = run_parallel_simulations(SAMPLES,
+                                                    post_setup_commands=first_scenario_commands)  # type:List[float]
+    second_scenario_times = run_parallel_simulations(SAMPLES,
+                                                     post_setup_commands=second_scenario_commands)  # type:List[float]
     end_time = time.time()  # type: float
     print("Simulation finished after {} seconds".format(end_time - start_time))
+
+    experiment_results = pd.DataFrame(data=list(zip(first_scenario_times, second_scenario_times)),
+                                      columns=[first_scenario_name, second_scenario_name])  # type:pd.DataFrame
 
     experiment_results.to_csv(RESULTS_CSV_FILE)
     print("Data written to {}".format(RESULTS_CSV_FILE))
@@ -112,12 +121,12 @@ def run_simulation_with_dict(dict_parameters):
     return run_simulation(**dict_parameters)
 
 
-def run_parallel_simulations(samples, post_setup_command, gui=False):
-    # type: (int, str, bool) -> List[float]
+def run_parallel_simulations(samples, post_setup_commands, gui=False):
+    # type: (int, List[str], bool) -> List[float]
 
     initialise_arguments = (gui,)  # type: Tuple
-    simulation_parameters = [{"run_id": run_id, "post_setup_command": post_setup_command}
-                             for run_id in range(samples)]  # type: List[Dict]
+    simulation_parameters = [{"simulation_id": simulation_id, "post_setup_commands": post_setup_commands}
+                             for simulation_id in range(samples)]  # type: List[Dict]
 
     results = []  # type: List[float]
     executor = Pool(initializer=initialize,
@@ -143,35 +152,34 @@ def plot_results(results_dataframe):
     plt.show()
 
 
-def analyse_results():
+def analyse_results(first_scenario_column, second_scenario_column):
+    # type: (str, str) -> None
     results_dataframe = pd.read_csv(RESULTS_CSV_FILE, index_col=[0])  # type: pd.DataFrame
     results_dataframe = results_dataframe.dropna()
 
     plot_results(results_dataframe)
 
-    evacuation_no_support = results_dataframe[NO_SUPPORT_COLUMN].values  # type: List[float]
-    mean_no_support = np.mean(evacuation_no_support).item()  # type:float
-    std_dev_no_support = np.std(evacuation_no_support).item()  # type:float
+    first_scenario_data = results_dataframe[first_scenario_column].values  # type: List[float]
+    first_scenario_mean = np.mean(first_scenario_data).item()  # type:float
+    first_scenario_stddev = np.std(first_scenario_data).item()  # type:float
 
-    evacuation_with_support = results_dataframe[ONLY_PASSENGER_SUPPORT_COLUMN].values  # type: List[float]
-    mean_staff_support = np.mean(evacuation_with_support).item()  # type:float
-    std_dev_staff_support = np.std(evacuation_with_support).item()  # type:float
+    second_scenario_data = results_dataframe[second_scenario_column].values  # type: List[float]
+    second_scenario_mean = np.mean(second_scenario_data).item()  # type:float
+    second_scenario_stddev = np.std(second_scenario_data).item()  # type:float
 
-    print(
-        "np.mean(evacuation_no_support) = {} np.std(evacuation_no_support) = {}"
-        " len(evacuation_no_support)={}".format(mean_no_support, std_dev_no_support, len(evacuation_no_support)))
-    print(
-        "np.mean(evacuation_with_support) = {} np.std(evacuation_with_support) = {} "
-        "len(evacuation_with_support) = {}".format(mean_staff_support, std_dev_staff_support,
-                                                   len(evacuation_with_support)))
+    print("{}-> mean = {} std = {} len={}".format(first_scenario_column, first_scenario_mean, first_scenario_stddev,
+                                                  len(first_scenario_data)))
+    print("{}-> mean = {} std = {} len={}".format(second_scenario_column, second_scenario_mean, second_scenario_stddev,
+                                                  len(second_scenario_data)))
     print("Sample size: {}".format(
-        calculate_sample_size(mean_no_support, mean_staff_support, std_dev_no_support, std_dev_staff_support)))
+        calculate_sample_size(first_scenario_mean, second_scenario_mean, first_scenario_stddev,
+                              second_scenario_stddev)))
 
     null_hypothesis = "The distribution of {} times is THE SAME as the distribution of {} times".format(
-        NO_SUPPORT_COLUMN, ONLY_PASSENGER_SUPPORT_COLUMN)  # type: str
+        first_scenario_column, second_scenario_column)  # type: str
 
     threshold = 0.05  # type:float
-    u, p_value = mannwhitneyu(x=evacuation_no_support, y=evacuation_with_support)
+    u, p_value = mannwhitneyu(x=first_scenario_data, y=second_scenario_data)
     print("U={} , p={}".format(u, p_value))
     if p_value > threshold:
         print("FAILS TO REJECT: {}".format(null_hypothesis))
@@ -180,7 +188,13 @@ def analyse_results():
 
 
 if __name__ == "__main__":
-    start_experiments()
+    first_scenario_name = ONLY_PASSENGER_SUPPORT_COLUMN  # type:str
+    second_scenario_name = ADAPTIVE_SUPPORT_COLUMN  # type:str
+
+    start_experiments(first_scenario_name=first_scenario_name,
+                      first_scenario_commands=[ENABLE_PASSENGER_COMMAND],
+                      second_scenario_name=second_scenario_name,
+                      second_scenario_commands=[ENABLE_STAFF_COMMAND, ENABLE_PASSENGER_COMMAND])
 
     plt.style.use('seaborn-darkgrid')
-    analyse_results()
+    analyse_results(first_scenario_column=first_scenario_name, second_scenario_column=second_scenario_name)
