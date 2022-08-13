@@ -32,7 +32,7 @@ ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
 ONLY_PASSENGER_SUPPORT_COLUMN = "passenger-support"  # type:str
 ADAPTIVE_SUPPORT_COLUMN = "adaptive-support"
 
-SAMPLES = 12  # type:int
+SAMPLES = 30  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -146,9 +146,10 @@ def run_parallel_simulations(samples, post_setup_commands, gui=False):
 def plot_results(results_dataframe):
     # type: (pd.DataFrame) -> None
 
-    _ = sns.violinplot(data=results_dataframe)
+    title = "{} samples".format(len(results_dataframe))
+    _ = sns.violinplot(data=results_dataframe).set_title(title)
     plt.show()
-    _ = sns.stripplot(data=results_dataframe, jitter=True)
+    _ = sns.stripplot(data=results_dataframe, jitter=True).set_title(title)
     plt.show()
 
 
