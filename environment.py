@@ -6,7 +6,7 @@ from sklearn.preprocessing import OneHotEncoder
 
 import solver
 from game import ROBOT_PLAYER_INDEX, PERSON_PLAYER_INDEX
-from gamemodels import generate_game_model, PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
+from gamemodel import generate_game_model, PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 
 PERSONAL_IDENTITY_CLASS = 0
 GROUP_IDENTITY_CLASS = 1
@@ -20,6 +20,8 @@ CLASS_TO_TYPE = {
 class NetlogoEvacuationEnvironment(object):
 
     def __init__(self, sensor_data, encoder_filename):
+        self.simulation_id = int(sensor_data["simulation_id"])  # type: int
+
         self.helper_gender = int(sensor_data["helper_gender"])  # type: int
         self.helper_culture = int(sensor_data["helper_culture"])  # type: int
         self.helper_age = int(sensor_data["helper_age"])  # type: int

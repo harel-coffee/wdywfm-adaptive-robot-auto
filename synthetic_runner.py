@@ -14,7 +14,7 @@ from typing import Tuple, Type, Optional, List
 from analyser import SyntheticTypeAnalyser
 from controller import ProSelfRobotController, AutonomicManagerController, ProSocialRobotController
 from environment import EmergencyEvacuationEnvironment
-from gamemodels import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
+from gamemodel import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 
 SEED = 0  # type:int
 NUM_SCENARIOS = 10  # type:int
