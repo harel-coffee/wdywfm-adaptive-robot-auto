@@ -25,7 +25,6 @@ class SyntheticTypeAnalyser(object):
         if model_file is not None:
             self.network = load_model(model_file)  # type: models.Sequential
             logging.info("Model loaded from {}".format(model_file))
-            self.network.summary()
         else:
             self.network = models.Sequential()  # type: models.Sequential
 

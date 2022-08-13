@@ -1,11 +1,13 @@
 import logging
+import os
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 from typing import Dict
-
+import numpy as np
 from analyser import SyntheticTypeAnalyser
 from controller import AutonomicManagerController
 from environment import NetlogoEvacuationEnvironment
+
 from synthetic_runner import MODEL_FILE, ENCODER_FILE
 
 PROJECT_DIRECTORY = "/home/cgc87/github/wdywfm-adaptive-robot/"  # type:str
@@ -14,7 +16,12 @@ PROJECT_DIRECTORY = "/home/cgc87/github/wdywfm-adaptive-robot/"  # type:str
 def run_scenario(robot_controller, emergency_environment):
     # type: ( AutonomicManagerController,  NetlogoEvacuationEnvironment) -> str
 
-    return "ask-staff"
+    current_sensor_data = emergency_environment.reset()  # type: np.ndarray
+    robot_action = robot_controller.sensor_data_callback(current_sensor_data)
+
+    logging.debug("robot_action {}".format(robot_action))
+
+    return robot_action
 
 
 def main():
@@ -41,5 +48,7 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.ERROR)
+    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
     main()

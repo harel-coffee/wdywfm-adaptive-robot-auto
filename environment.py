@@ -30,6 +30,23 @@ class NetlogoEvacuationEnvironment(object):
         with open(encoder_filename, "rb") as encoder_file:
             self.encoder = pickle.load(encoder_file)  # type: OneHotEncoder
 
+    def reset(self):
+        logging.debug("self.helper_gender {}".format(self.helper_gender))
+        logging.debug("self.helper_culture {}".format(self.helper_culture))
+        logging.debug("self.helper_age {}".format(self.helper_age))
+        logging.debug("self.fallen_gender {}".format(self.fallen_gender))
+        logging.debug("self.fallen_culture {}".format(self.fallen_culture))
+        logging.debug("self.fallen_age {}".format(self.fallen_age))
+
+        raw_data = np.array([self.helper_gender, self.helper_culture, self.helper_age,
+                             self.fallen_gender, self.fallen_culture, self.fallen_age])  # type: np.ndarray
+        raw_data = raw_data.reshape(1, -1)
+
+        logging.debug("raw_data {}".format(raw_data))
+        logging.debug("shape {}".format(raw_data.shape))
+
+        return self.encoder.transform(raw_data)
+
 
 class EmergencyEvacuationEnvironment(object):
 
