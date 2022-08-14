@@ -24,6 +24,7 @@ DEAD_REPORTER = "count agents with [ st_dead = 1 ]"  # type:str
 SET_SIMULATION_ID_COMMAND = "set SIMULATION_ID {}"  # type:str
 ENABLE_STAFF_COMMAND = "set REQUEST_STAFF_SUPPORT TRUE"  # type:str
 ENABLE_PASSENGER_COMMAND = "set REQUEST_BYSTANDER_SUPPORT TRUE"
+SEED_SIMULATION_REPORTER = "seed-simulation"
 
 RESULTS_CSV_FILE = "data/experiment_results.csv"  # type:str
 NO_SUPPORT_COLUMN = "no-support"  # type:str
@@ -62,15 +63,16 @@ def calculate_sample_size(mean_1, mean_2, std_dev_1, std_dev_2, alpha=0.05, powe
 def run_simulation(simulation_id, post_setup_commands):
     # type: (int, List[str]) -> Optional[float]
     try:
+        current_seed = netlogo_link.report(SEED_SIMULATION_REPORTER)  # type:str
         netlogo_link.command("setup")
         netlogo_link.command(SET_SIMULATION_ID_COMMAND.format(simulation_id))
 
         if len(post_setup_commands) > 0:
             for post_setup_command in post_setup_commands:
                 netlogo_link.command(post_setup_command)
-                print("{} {} executed".format(simulation_id, post_setup_command))
+                print("id:{} seed:{} {} executed".format(simulation_id, current_seed, post_setup_command))
         else:
-            print("{} no post-setup commands".format(simulation_id))
+            print("id:{} seed:{} no post-setup commands".format(simulation_id, current_seed))
 
         metrics_dataframe = netlogo_link.repeat_report(
             netlogo_reporter=[TURTLE_PRESENT_REPORTER, EVACUATED_REPORTER, DEAD_REPORTER],
@@ -80,7 +82,7 @@ def run_simulation(simulation_id, post_setup_commands):
             metrics_dataframe[TURTLE_PRESENT_REPORTER] == metrics_dataframe[DEAD_REPORTER]]
 
         evacuation_time = evacuation_finished.index.min()  # type: float
-        print("{} evacuation time {}".format(simulation_id, evacuation_time))
+        print("id:{} seed:{} evacuation time {}".format(simulation_id, current_seed, evacuation_time))
 
         return evacuation_time
     except Exception:
@@ -108,6 +110,7 @@ def start_experiments(first_scenario_name, first_scenario_commands, second_scena
                                                      post_setup_commands=second_scenario_commands)  # type:List[float]
     end_time = time.time()  # type: float
     print("Simulation finished after {} seconds".format(end_time - start_time))
+    netlogo_link.kill_workspace()
 
     experiment_results = pd.DataFrame(data=list(zip(first_scenario_times, second_scenario_times)),
                                       columns=[first_scenario_name, second_scenario_name])  # type:pd.DataFrame
