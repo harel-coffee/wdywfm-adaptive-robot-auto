@@ -103,6 +103,7 @@ def initialize(gui):
 
 def start_experiments(first_scenario_name, first_scenario_commands, second_scenario_name, second_scenario_commands):
     # type: (str, List[str], str, List[str]) -> None
+
     start_time = time.time()  # type: float
     first_scenario_times = run_parallel_simulations(SAMPLES,
                                                     post_setup_commands=first_scenario_commands)  # type:List[float]
@@ -110,7 +111,6 @@ def start_experiments(first_scenario_name, first_scenario_commands, second_scena
                                                      post_setup_commands=second_scenario_commands)  # type:List[float]
     end_time = time.time()  # type: float
     print("Simulation finished after {} seconds".format(end_time - start_time))
-    netlogo_link.kill_workspace()
 
     experiment_results = pd.DataFrame(data=list(zip(first_scenario_times, second_scenario_times)),
                                       columns=[first_scenario_name, second_scenario_name])  # type:pd.DataFrame
