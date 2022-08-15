@@ -22,16 +22,22 @@ EVACUATED_REPORTER = "number_passengers - count agents + 1"  # type:str
 DEAD_REPORTER = "count agents with [ st_dead = 1 ]"  # type:str
 
 SET_SIMULATION_ID_COMMAND = "set SIMULATION_ID {}"  # type:str
-ENABLE_STAFF_COMMAND = "set REQUEST_STAFF_SUPPORT TRUE"  # type:str
-ENABLE_PASSENGER_COMMAND = "set REQUEST_BYSTANDER_SUPPORT TRUE"
 SEED_SIMULATION_REPORTER = "seed-simulation"
 
 RESULTS_CSV_FILE = "data/experiment_results.csv"  # type:str
 NO_SUPPORT_COLUMN = "no-support"  # type:str
 
+ENABLE_STAFF_COMMAND = "set REQUEST_STAFF_SUPPORT TRUE"  # type:str
+ENABLE_PASSENGER_COMMAND = "set REQUEST_BYSTANDER_SUPPORT TRUE"
+
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
 ONLY_PASSENGER_SUPPORT_COLUMN = "passenger-support"  # type:str
 ADAPTIVE_SUPPORT_COLUMN = "adaptive-support"
+
+SIMULATION_SCENARIOS = {ONLY_STAFF_SUPPORT_COLUMN: [ENABLE_STAFF_COMMAND],
+                        ONLY_PASSENGER_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND],
+                        ADAPTIVE_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND,
+                                                  ENABLE_STAFF_COMMAND]}  # type: Dict[str, List[str]]
 
 SAMPLES = 30  # type:int
 
@@ -101,21 +107,23 @@ def initialize(gui):
     netlogo_link.load_model(MODEL_FILE)
 
 
-def start_experiments(first_scenario_name, first_scenario_commands, second_scenario_name, second_scenario_commands):
-    # type: (str, List[str], str, List[str]) -> None
+def start_experiments(experiment_configurations):
+    # type: (Dict[str, List[str]]) -> None
 
     start_time = time.time()  # type: float
-    first_scenario_times = run_parallel_simulations(SAMPLES,
-                                                    post_setup_commands=first_scenario_commands)  # type:List[float]
-    second_scenario_times = run_parallel_simulations(SAMPLES,
-                                                     post_setup_commands=second_scenario_commands)  # type:List[float]
+
+    experiment_data = {}  # type: Dict[str, List[float]]
+    for experiment_name, experiment_commands in experiment_configurations.items():
+        scenario_times = run_parallel_simulations(SAMPLES,
+                                                  post_setup_commands=experiment_commands)  # type:List[float]
+        experiment_data[experiment_name] = scenario_times
+
     end_time = time.time()  # type: float
     print("Simulation finished after {} seconds".format(end_time - start_time))
 
-    experiment_results = pd.DataFrame(data=list(zip(first_scenario_times, second_scenario_times)),
-                                      columns=[first_scenario_name, second_scenario_name])  # type:pd.DataFrame
-
+    experiment_results = pd.DataFrame(experiment_data)  # type:pd.DataFrame
     experiment_results.to_csv(RESULTS_CSV_FILE)
+
     print("Data written to {}".format(RESULTS_CSV_FILE))
 
 
@@ -146,8 +154,19 @@ def run_parallel_simulations(samples, post_setup_commands, gui=False):
     return results
 
 
-def plot_results(results_dataframe):
-    # type: (pd.DataFrame) -> None
+def get_dataframe():
+    # type: () -> pd.DataFrame
+    results_dataframe = pd.read_csv(RESULTS_CSV_FILE, index_col=[0])  # type: pd.DataFrame
+    results_dataframe = results_dataframe.dropna()
+
+    return results_dataframe
+
+
+def plot_results():
+    # type: () -> None
+    results_dataframe = get_dataframe()  # type: pd.DataFrame
+
+    print(results_dataframe.describe())
 
     title = "{} samples".format(len(results_dataframe))
     _ = sns.violinplot(data=results_dataframe).set_title(title)
@@ -156,12 +175,9 @@ def plot_results(results_dataframe):
     plt.show()
 
 
-def analyse_results(first_scenario_column, second_scenario_column):
+def test_hypothesis(first_scenario_column, second_scenario_column):
     # type: (str, str) -> None
-    results_dataframe = pd.read_csv(RESULTS_CSV_FILE, index_col=[0])  # type: pd.DataFrame
-    results_dataframe = results_dataframe.dropna()
-
-    plot_results(results_dataframe)
+    results_dataframe = get_dataframe()  # type: pd.DataFrame
 
     first_scenario_data = results_dataframe[first_scenario_column].values  # type: List[float]
     first_scenario_mean = np.mean(first_scenario_data).item()  # type:float
@@ -192,13 +208,9 @@ def analyse_results(first_scenario_column, second_scenario_column):
 
 
 if __name__ == "__main__":
-    first_scenario_name = ONLY_PASSENGER_SUPPORT_COLUMN  # type:str
-    second_scenario_name = ADAPTIVE_SUPPORT_COLUMN  # type:str
-
-    start_experiments(first_scenario_name=first_scenario_name,
-                      first_scenario_commands=[ENABLE_PASSENGER_COMMAND],
-                      second_scenario_name=second_scenario_name,
-                      second_scenario_commands=[ENABLE_STAFF_COMMAND, ENABLE_PASSENGER_COMMAND])
+    start_experiments(SIMULATION_SCENARIOS)
 
     plt.style.use('seaborn-darkgrid')
-    analyse_results(first_scenario_column=first_scenario_name, second_scenario_column=second_scenario_name)
+    plot_results()
+    test_hypothesis(first_scenario_column=SIMULATION_SCENARIOS.keys()[0],
+                    second_scenario_column=SIMULATION_SCENARIOS.keys()[1])
