@@ -29,6 +29,9 @@ class NetlogoEvacuationEnvironment(object):
         self.fallen_culture = int(sensor_data["fallen_culture"])  # type: int
         self.fallen_age = int(sensor_data["fallen_age"])  # type: int
 
+        self.helper_fallen_distance = float(sensor_data["helper_fallen_distance"])  # type: float
+        self.staff_fallen_distance = float(sensor_data["staff_fallen_distance"])  # type: float
+
         with open(encoder_filename, "rb") as encoder_file:
             self.encoder = pickle.load(encoder_file)  # type: OneHotEncoder
 

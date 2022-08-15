@@ -8,8 +8,12 @@ from gamemodel import SHARED_IDENTITY_TYPE, PERSONAL_IDENTITY_TYPE, ASK_FOR_HELP
     COOPERATE_PERSON_ACTION, NOT_COOPERATE_PERSON_ACTION
 
 
-def generate_game_model(zero_responder_ratio, selfish_ratio, filename):
-    # type: (Tuple[int, int], Tuple[int, int], Optional[str]) -> InteractionGame
+def generate_game_model(zero_responder_ratio,
+                        selfish_ratio,
+                        robot_payoff_with_support,
+                        robot_payoff_call_staff,
+                        filename):
+    # type: (Tuple[int, int], Tuple[int, int],  gambit.Rational, gambit.Rational, Optional[str]) -> InteractionGame
 
     logging.debug("zero_responder_ratio:  %s " % str(zero_responder_ratio))
     logging.debug("selfish_ratio:  %s " % str(selfish_ratio))
@@ -23,9 +27,7 @@ def generate_game_model(zero_responder_ratio, selfish_ratio, filename):
     person_payoff_against_identity = gambit.Rational(-1, 1)  # type: gambit.Rational
     person_payoff_not_contacted = gambit.Rational(0, 1)  # type: gambit.Rational
 
-    robot_payoff_with_support = gambit.Rational(3, 1)  # type: gambit.Rational
     robot_payoff_request_ignored = gambit.Rational(-1, 1)  # type: gambit.Rational
-    robot_payoff_call_staff = gambit.Rational(0, 1)  # type: gambit.Rational
 
     interaction_game.configure_person_response(SHARED_IDENTITY_TYPE, ASK_FOR_HELP_ROBOT_ACTION,
                                                [(

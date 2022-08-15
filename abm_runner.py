@@ -21,6 +21,8 @@ def run_scenario(robot_controller, emergency_environment):
     current_sensor_data = emergency_environment.reset()  # type: np.ndarray
 
     model_filename = "simulation_{}_game_model.efg".format(emergency_environment.simulation_id)  # type:str
+
+    robot_controller.measure_distance(emergency_environment)
     robot_action = robot_controller.sensor_data_callback(current_sensor_data, model_filename)  # type:str
 
     logging.debug("robot_action {}".format(robot_action))
@@ -39,6 +41,8 @@ def main():
     parser.add_argument("fallen_gender")
     parser.add_argument("fallen_culture")
     parser.add_argument("fallen_age")
+    parser.add_argument("helper_fallen_distance")
+    parser.add_argument("staff_fallen_distance")
 
     arguments = parser.parse_args()
     configuration = vars(arguments)  # type:Dict
@@ -57,6 +61,8 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.ERROR)
+    # logging.basicConfig(level=logging.INFO)
+
     os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
     main()
