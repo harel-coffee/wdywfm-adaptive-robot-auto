@@ -1,3 +1,4 @@
+import itertools
 import multiprocessing
 import time
 import traceback
@@ -34,12 +35,13 @@ ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
 ONLY_PASSENGER_SUPPORT_COLUMN = "passenger-support"  # type:str
 ADAPTIVE_SUPPORT_COLUMN = "adaptive-support"
 
-SIMULATION_SCENARIOS = {ONLY_STAFF_SUPPORT_COLUMN: [ENABLE_STAFF_COMMAND],
+SIMULATION_SCENARIOS = {NO_SUPPORT_COLUMN: [],
+                        ONLY_STAFF_SUPPORT_COLUMN: [ENABLE_STAFF_COMMAND],
                         ONLY_PASSENGER_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND],
                         ADAPTIVE_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND,
                                                   ENABLE_STAFF_COMMAND]}  # type: Dict[str, List[str]]
 
-SAMPLES = 30  # type:int
+SAMPLES = 12  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -212,5 +214,7 @@ if __name__ == "__main__":
 
     plt.style.use('seaborn-darkgrid')
     plot_results()
-    test_hypothesis(first_scenario_column=SIMULATION_SCENARIOS.keys()[0],
-                    second_scenario_column=SIMULATION_SCENARIOS.keys()[1])
+
+    for first_scenario, second_scenario in itertools.combinations(SIMULATION_SCENARIOS.keys(), 2):
+        test_hypothesis(first_scenario_column=first_scenario,
+                        second_scenario_column=second_scenario)
