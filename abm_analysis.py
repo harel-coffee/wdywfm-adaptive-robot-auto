@@ -14,6 +14,8 @@ import seaborn as sns
 from scipy.stats import mannwhitneyu
 import statsmodels.api as sm
 
+PLOT_STYLE = 'seaborn-darkgrid'
+
 MODEL_FILE = "/home/cgc87/github/robot-assisted-evacuation/impact2.10.7/v2.11.0.nlogo"  # type:str
 NETLOGO_HOME = "/home/cgc87/netlogo-5.3.1-64"  # type:str
 NETLOGO_VERSION = "5"  # type:str
@@ -41,7 +43,7 @@ SIMULATION_SCENARIOS = {NO_SUPPORT_COLUMN: [],
                         ADAPTIVE_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND,
                                                   ENABLE_STAFF_COMMAND]}  # type: Dict[str, List[str]]
 
-SAMPLES = 12  # type:int
+SAMPLES = 100  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -212,7 +214,7 @@ def test_hypothesis(first_scenario_column, second_scenario_column):
 if __name__ == "__main__":
     start_experiments(SIMULATION_SCENARIOS)
 
-    plt.style.use('seaborn-darkgrid')
+    plt.style.use(PLOT_STYLE)
     plot_results()
 
     for first_scenario, second_scenario in itertools.combinations(SIMULATION_SCENARIOS.keys(), 2):
