@@ -158,17 +158,17 @@ def run_parallel_simulations(samples, post_setup_commands, gui=False):
     return results
 
 
-def get_dataframe():
-    # type: () -> pd.DataFrame
-    results_dataframe = pd.read_csv(RESULTS_CSV_FILE, index_col=[0])  # type: pd.DataFrame
+def get_dataframe(csv_file):
+    # type: (str) -> pd.DataFrame
+    results_dataframe = pd.read_csv(csv_file, index_col=[0])  # type: pd.DataFrame
     results_dataframe = results_dataframe.dropna()
 
     return results_dataframe
 
 
-def plot_results():
-    # type: () -> None
-    results_dataframe = get_dataframe()  # type: pd.DataFrame
+def plot_results(csv_file):
+    # type: (str) -> None
+    results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
 
     print(results_dataframe.describe())
 
@@ -179,9 +179,9 @@ def plot_results():
     plt.show()
 
 
-def test_hypothesis(first_scenario_column, second_scenario_column):
-    # type: (str, str) -> None
-    results_dataframe = get_dataframe()  # type: pd.DataFrame
+def test_hypothesis(first_scenario_column, second_scenario_column, csv_file):
+    # type: (str, str, str) -> None
+    results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
 
     first_scenario_data = results_dataframe[first_scenario_column].values  # type: List[float]
     first_scenario_mean = np.mean(first_scenario_data).item()  # type:float
@@ -212,11 +212,13 @@ def test_hypothesis(first_scenario_column, second_scenario_column):
 
 
 if __name__ == "__main__":
-    start_experiments(SIMULATION_SCENARIOS)
+    # start_experiments(SIMULATION_SCENARIOS)
 
+    current_file = "data/180_fall_100_samples_experiment_results.csv"  # type:str
     plt.style.use(PLOT_STYLE)
-    plot_results()
+    plot_results(csv_file=current_file)
 
     for first_scenario, second_scenario in itertools.combinations(SIMULATION_SCENARIOS.keys(), 2):
         test_hypothesis(first_scenario_column=first_scenario,
-                        second_scenario_column=second_scenario)
+                        second_scenario_column=second_scenario,
+                        csv_file=current_file)
