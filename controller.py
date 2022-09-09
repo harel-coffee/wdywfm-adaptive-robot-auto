@@ -1,9 +1,9 @@
 import logging
 
 import numpy as np
-from gambit.nash import NashSolution
 from gambit import Rational
-from typing import Optional, Tuple, List, Dict, Callable
+from gambit.nash import NashSolution
+from typing import Optional, Tuple, List, Dict
 
 import analyser
 import solver

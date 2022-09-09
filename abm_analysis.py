@@ -16,7 +16,8 @@ import statsmodels.api as sm
 
 PLOT_STYLE = 'seaborn-darkgrid'
 
-MODEL_FILE = "/home/cgc87/github/robot-assisted-evacuation/impact2.10.7/v2.11.0.nlogo"  # type:str
+NETLOGO_PROJECT_DIRECTORY = "/home/cgc87/github/robot-assisted-evacuation/"  # type:str
+MODEL_FILE = NETLOGO_PROJECT_DIRECTORY + "/impact2.10.7/v2.11.0.nlogo"  # type:str
 NETLOGO_HOME = "/home/cgc87/netlogo-5.3.1-64"  # type:str
 NETLOGO_VERSION = "5"  # type:str
 
@@ -214,7 +215,7 @@ def test_hypothesis(first_scenario_column, second_scenario_column, csv_file):
 if __name__ == "__main__":
     # start_experiments(SIMULATION_SCENARIOS)
 
-    current_file = "data/180_fall_100_samples_experiment_results.csv"  # type:str
+    current_file = "data/300_fall_100_samples_experiment_results.csv"  # type:str
     plt.style.use(PLOT_STYLE)
     plot_results(csv_file=current_file)
 
