@@ -7,6 +7,7 @@ from multiprocessing import Pool
 import numpy as np
 import pyNetLogo
 import pandas as pd
+from pathlib import Path
 from typing import List, Tuple, Dict, Optional
 
 import matplotlib.pyplot as plt
@@ -167,21 +168,28 @@ def get_dataframe(csv_file):
     return results_dataframe
 
 
-def plot_results(csv_file):
+def plot_results(csv_file, samples_in_title=False):
     # type: (str) -> None
+    file_description = Path(csv_file).stem  # type: str
     results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
 
     print(results_dataframe.describe())
 
-    title = "{} samples".format(len(results_dataframe))
+    title = ""
+    if samples_in_title:
+        title = "{} samples".format(len(results_dataframe))
     _ = sns.violinplot(data=results_dataframe).set_title(title)
+    plt.savefig("img/" + file_description + "_violin_plot.png")
     plt.show()
+
     _ = sns.stripplot(data=results_dataframe, jitter=True).set_title(title)
+    plt.savefig("img/" + file_description + "_strip_plot.png")
     plt.show()
 
 
 def test_hypothesis(first_scenario_column, second_scenario_column, csv_file):
     # type: (str, str, str) -> None
+    print("Analysing file {}".format(csv_file))
     results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
 
     first_scenario_data = results_dataframe[first_scenario_column].values  # type: List[float]
@@ -200,8 +208,9 @@ def test_hypothesis(first_scenario_column, second_scenario_column, csv_file):
         calculate_sample_size(first_scenario_mean, second_scenario_mean, first_scenario_stddev,
                               second_scenario_stddev)))
 
-    null_hypothesis = "The distribution of {} times is THE SAME as the distribution of {} times".format(
-        first_scenario_column, second_scenario_column)  # type: str
+    null_hypothesis = "MANN-WHITNEY RANK TEST: " + \
+                      "The distribution of {} times is THE SAME as the distribution of {} times".format(
+                          first_scenario_column, second_scenario_column)  # type: str
 
     threshold = 0.05  # type:float
     u, p_value = mannwhitneyu(x=first_scenario_data, y=second_scenario_data)
@@ -214,12 +223,14 @@ def test_hypothesis(first_scenario_column, second_scenario_column, csv_file):
 
 if __name__ == "__main__":
     # start_experiments(SIMULATION_SCENARIOS)
+    fall_lengths = [60, 120, 180, 240, 300]  # type: List[int]
 
-    current_file = "data/300_fall_100_samples_experiment_results.csv"  # type:str
-    plt.style.use(PLOT_STYLE)
-    plot_results(csv_file=current_file)
+    for fall_length in fall_lengths:
+        current_file = "data/{}_fall_100_samples_experiment_results.csv".format(fall_length)  # type:str
+        plt.style.use(PLOT_STYLE)
+        plot_results(csv_file=current_file)
 
-    for first_scenario, second_scenario in itertools.combinations(SIMULATION_SCENARIOS.keys(), 2):
-        test_hypothesis(first_scenario_column=first_scenario,
-                        second_scenario_column=second_scenario,
-                        csv_file=current_file)
+        for first_scenario, second_scenario in itertools.combinations(SIMULATION_SCENARIOS.keys(), 2):
+            test_hypothesis(first_scenario_column=first_scenario,
+                            second_scenario_column=second_scenario,
+                            csv_file=current_file)
