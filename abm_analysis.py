@@ -187,9 +187,9 @@ def plot_results(csv_file, samples_in_title=False):
     plt.show()
 
 
-def test_hypothesis(first_scenario_column, second_scenario_column, csv_file):
+def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alternative_hypothesis="two-sided"):
     # type: (str, str, str) -> None
-    print("Analysing file {}".format(csv_file))
+    print("CURRENT ANALYSIS: Analysing file {}".format(csv_file))
     results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
 
     first_scenario_data = results_dataframe[first_scenario_column].values  # type: List[float]
@@ -211,14 +211,18 @@ def test_hypothesis(first_scenario_column, second_scenario_column, csv_file):
     null_hypothesis = "MANN-WHITNEY RANK TEST: " + \
                       "The distribution of {} times is THE SAME as the distribution of {} times".format(
                           first_scenario_column, second_scenario_column)  # type: str
+    alternative_hypothesis = "ALTERNATIVE HYPOTHESIS: the distribution underlying {} is stochastically {} than the " \
+                             "distribution underlying {}".format(first_scenario_column, alternative_hypothesis,
+                                                                 second_scenario_column)  # type:str
 
     threshold = 0.05  # type:float
     u, p_value = mannwhitneyu(x=first_scenario_data, y=second_scenario_data)
     print("U={} , p={}".format(u, p_value))
     if p_value > threshold:
-        print("FAILS TO REJECT: {}".format(null_hypothesis))
+        print("FAILS TO REJECT NULL HYPOTHESIS: {}".format(null_hypothesis))
     else:
-        print("REJECT: {}".format(null_hypothesis))
+        print("REJECT NULL HYPOTHESIS: {}".format(null_hypothesis))
+        print(alternative_hypothesis)
 
 
 if __name__ == "__main__":
@@ -230,7 +234,9 @@ if __name__ == "__main__":
         plt.style.use(PLOT_STYLE)
         plot_results(csv_file=current_file)
 
-        for first_scenario, second_scenario in itertools.combinations(SIMULATION_SCENARIOS.keys(), 2):
-            test_hypothesis(first_scenario_column=first_scenario,
-                            second_scenario_column=second_scenario,
-                            csv_file=current_file)
+        for alternative_scenario in SIMULATION_SCENARIOS.keys():
+            if alternative_scenario != ADAPTIVE_SUPPORT_COLUMN:
+                test_hypothesis(first_scenario_column=ADAPTIVE_SUPPORT_COLUMN,
+                                second_scenario_column=alternative_scenario,
+                                alternative_hypothesis="less",
+                                csv_file=current_file)
