@@ -1,19 +1,17 @@
-import itertools
 import multiprocessing
 import time
 import traceback
 from multiprocessing import Pool
 
-import numpy as np
-import pyNetLogo
-import pandas as pd
-from pathlib import Path
-from typing import List, Tuple, Dict, Optional
-
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pyNetLogo
 import seaborn as sns
-from scipy.stats import mannwhitneyu
 import statsmodels.api as sm
+from pathlib import Path
+from scipy.stats import mannwhitneyu
+from typing import List, Tuple, Dict, Optional
 
 PLOT_STYLE = 'seaborn-darkgrid'
 
@@ -227,8 +225,8 @@ def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alt
 
 if __name__ == "__main__":
     # start_experiments(SIMULATION_SCENARIOS)
-    fall_lengths = [60, 120, 180, 240, 300]  # type: List[int]
 
+    fall_lengths = [360, 420, 480, 540, 600]  # type: List[int]
     for fall_length in fall_lengths:
         current_file = "data/{}_fall_100_samples_experiment_results.csv".format(fall_length)  # type:str
         plt.style.use(PLOT_STYLE)
