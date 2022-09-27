@@ -12,3 +12,4 @@ statsmodels~=0.10.1
 tensorflow-gpu~=1.14.0
 pillow~=6.2.2
 natsort~=5.5.0
+pathlib~=1.0.1
