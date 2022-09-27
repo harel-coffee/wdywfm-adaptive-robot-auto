@@ -2,29 +2,24 @@ import logging
 import pickle
 
 import numpy as np
-import pandas as pd
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
 from matplotlib import pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils import shuffle
-from typing import Tuple, Type, Optional, List
+from typing import Tuple, Optional
 
 from analyser import SyntheticTypeAnalyser
-from controller import ProSelfRobotController, AutonomicManagerController, ProSocialRobotController
-from environment import EmergencyEvacuationEnvironment
+from controller import AutonomicManagerController
 from gamemodel import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 
 SEED = 0  # type:int
 NUM_SCENARIOS = 10  # type:int
 INTERACTIONS_PER_SCENARIO = 10  # type:int
 
-MODEL_FILE = "trained_model.h5"  # type:str
-ENCODER_FILE = "encoder.pickle"  # type:str
-
-NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
-REQUEST_RESULT_COLUMN = "offer-help"  # type:str
+MODEL_FILE = "model/trained_model.h5"  # type:str
+ENCODER_FILE = "model/encoder.pickle"  # type:str
 
 TYPE_TO_CLASS = {
     PERSONAL_IDENTITY_TYPE: 0,
@@ -62,20 +57,6 @@ def get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_
                                            random_state=0)
 
     return features, target
-
-
-def get_netlogo_dataset():
-    # type:() -> Tuple[np.ndarray, np.ndarray]
-
-    dataframes = [pd.read_csv("data/{}_{}.csv".format(dataframe_index, NETLOGO_DATA_FILE_PREFIX))
-                  for dataframe_index in range(0, 12)]  # type: List[pd.DataFrame]
-
-    netlogo_dataframe = pd.concat(dataframes, axis=0)  # type: pd.DataFrame
-
-    sensor_data = netlogo_dataframe.drop(REQUEST_RESULT_COLUMN, axis=1)  # type: pd.DataFrame
-    person_type = netlogo_dataframe[REQUEST_RESULT_COLUMN]  # type: pd.DataFrame
-
-    return sensor_data.values, person_type.values
 
 
 def plot_training(training_history, metric):
@@ -219,7 +200,8 @@ def main():
     num_scenarios = NUM_SCENARIOS
     train_analyser = True  # type:bool
 
-    sensor_data, person_type = get_netlogo_dataset()
+    # sensor_data, person_type = get_netlogo_dataset()
+    sensor_data, person_type = get_synthetic_dataset()
     sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
                                                                                                 person_type,
                                                                                                 test_size=0.33,
