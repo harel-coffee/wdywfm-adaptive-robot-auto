@@ -10,6 +10,7 @@ import pyNetLogo
 import seaborn as sns
 import statsmodels.api as sm
 from pathlib import Path
+from pyNetLogo import NetLogoException
 from scipy.stats import mannwhitneyu
 from typing import List, Tuple, Dict, Optional
 
@@ -95,6 +96,9 @@ def run_simulation(simulation_id, post_setup_commands):
         print("id:{} seed:{} evacuation time {}".format(simulation_id, current_seed, evacuation_time))
 
         return evacuation_time
+    except NetLogoException:
+        traceback.print_exc()
+        raise
     except Exception:
         traceback.print_exc()
 
@@ -225,10 +229,17 @@ def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alt
 
 if __name__ == "__main__":
     # start_experiments(SIMULATION_SCENARIOS)
+    #
+    # start_experiments({ADAPTIVE_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND,
+    #                                              ENABLE_STAFF_COMMAND]})
 
-    fall_lengths = [360, 420, 480, 540, 600]  # type: List[int]
+    # For generating training data
+    # start_experiments({NO_SUPPORT_COLUMN: []})
+
+    fall_lengths = [360]  # type: List[int]
     for fall_length in fall_lengths:
-        current_file = "data/{}_fall_100_samples_experiment_results.csv".format(fall_length)  # type:str
+        # current_file = "data/{}_fall_100_samples_experiment_results.csv".format(fall_length)  # type:str
+        current_file = "data/experiment_results.csv"  # type:str
         plt.style.use(PLOT_STYLE)
         plot_results(csv_file=current_file)
 
