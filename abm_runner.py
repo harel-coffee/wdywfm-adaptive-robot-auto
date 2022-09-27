@@ -2,15 +2,16 @@ import logging
 import os
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
-from typing import Dict
 import numpy as np
+from typing import Dict
 
 import abm_gamemodel
 from analyser import SyntheticTypeAnalyser
 from controller import AutonomicManagerController
 from environment import NetlogoEvacuationEnvironment
-
 from synthetic_runner import MODEL_FILE, ENCODER_FILE
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Running inference on CPU
 
 PROJECT_DIRECTORY = "/home/cgc87/github/wdywfm-adaptive-robot/"  # type:str
 
@@ -20,7 +21,7 @@ def run_scenario(robot_controller, emergency_environment):
 
     current_sensor_data = emergency_environment.reset()  # type: np.ndarray
 
-    model_filename = "simulation_{}_game_model.efg".format(emergency_environment.simulation_id)  # type:str
+    model_filename = "efg/simulation_{}_game_model.efg".format(emergency_environment.simulation_id)  # type:str
 
     robot_controller.measure_distance(emergency_environment)
     robot_action = robot_controller.sensor_data_callback(current_sensor_data, model_filename)  # type:str
