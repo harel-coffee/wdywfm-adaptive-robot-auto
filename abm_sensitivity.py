@@ -35,7 +35,9 @@ def get_heatmap(annotated=False):
     print(heatmap_data)
 
     _ = seaborn.heatmap(heatmap_data, annot=annotated, fmt=".1f")
-    plt.savefig("img/sensitivity_analysis.png")
+    plt.savefig("img/sensitivity_analysis.eps", format="eps")
+    plt.savefig("img/sensitivity_analysis.png", format="png")
+
     plt.show()
 
 
@@ -66,5 +68,5 @@ def generate_data_for_analysis():
 
 if __name__ == "__main__":
     plt.style.use(PLOT_STYLE)
-    generate_data_for_analysis()
+    # generate_data_for_analysis()
     get_heatmap(annotated=False)
