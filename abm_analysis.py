@@ -28,11 +28,12 @@ DEAD_REPORTER = "count agents with [ st_dead = 1 ]"  # type:str
 SET_SIMULATION_ID_COMMAND = "set SIMULATION_ID {}"  # type:str
 SEED_SIMULATION_REPORTER = "seed-simulation"
 
-RESULTS_CSV_FILE = "data/experiment_results.csv"  # type:str
+RESULTS_CSV_FILE = "data/{}_fall_{}_samples_experiment_results.csv"  # type:str
 NO_SUPPORT_COLUMN = "no-support"  # type:str
 
 ENABLE_STAFF_COMMAND = "set REQUEST_STAFF_SUPPORT TRUE"  # type:str
 ENABLE_PASSENGER_COMMAND = "set REQUEST_BYSTANDER_SUPPORT TRUE"
+SET_FALL_LENGTH_COMMAND = "set DEFAULT_FALL_LENGTH {}"  # type:str
 
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
 ONLY_PASSENGER_SUPPORT_COLUMN = "passenger-support"  # type:str
@@ -115,8 +116,8 @@ def initialize(gui):
     netlogo_link.load_model(MODEL_FILE)
 
 
-def start_experiments(experiment_configurations):
-    # type: (Dict[str, List[str]]) -> None
+def start_experiments(experiment_configurations, results_file):
+    # type: (Dict[str, List[str]], str) -> None
 
     start_time = time.time()  # type: float
 
@@ -130,9 +131,9 @@ def start_experiments(experiment_configurations):
     print("Simulation finished after {} seconds".format(end_time - start_time))
 
     experiment_results = pd.DataFrame(experiment_data)  # type:pd.DataFrame
-    experiment_results.to_csv(RESULTS_CSV_FILE)
+    experiment_results.to_csv(results_file)
 
-    print("Data written to {}".format(RESULTS_CSV_FILE))
+    print("Data written to {}".format(results_file))
 
 
 def run_simulation_with_dict(dict_parameters):
@@ -171,7 +172,7 @@ def get_dataframe(csv_file):
 
 
 def plot_results(csv_file, samples_in_title=False):
-    # type: (str) -> None
+    # type: (str, bool) -> None
     file_description = Path(csv_file).stem  # type: str
     results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
 
@@ -189,8 +190,8 @@ def plot_results(csv_file, samples_in_title=False):
     plt.show()
 
 
-def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alternative_hypothesis="two-sided"):
-    # type: (str, str, str) -> None
+def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alternative="two-sided"):
+    # type: (str, str, str, str) -> None
     print("CURRENT ANALYSIS: Analysing file {}".format(csv_file))
     results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
 
@@ -214,11 +215,11 @@ def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alt
                       "The distribution of {} times is THE SAME as the distribution of {} times".format(
                           first_scenario_column, second_scenario_column)  # type: str
     alternative_hypothesis = "ALTERNATIVE HYPOTHESIS: the distribution underlying {} is stochastically {} than the " \
-                             "distribution underlying {}".format(first_scenario_column, alternative_hypothesis,
+                             "distribution underlying {}".format(first_scenario_column, alternative,
                                                                  second_scenario_column)  # type:str
 
     threshold = 0.05  # type:float
-    u, p_value = mannwhitneyu(x=first_scenario_data, y=second_scenario_data)
+    u, p_value = mannwhitneyu(x=first_scenario_data, y=second_scenario_data, alternative=alternative)
     print("U={} , p={}".format(u, p_value))
     if p_value > threshold:
         print("FAILS TO REJECT NULL HYPOTHESIS: {}".format(null_hypothesis))
@@ -227,25 +228,37 @@ def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alt
         print(alternative_hypothesis)
 
 
+def simulate_and_store(fall_length):
+    # type: (int) -> None
+    results_file_name = RESULTS_CSV_FILE.format(fall_length, SAMPLES)  # type:str
+    update_fall_length = SET_FALL_LENGTH_COMMAND.format(fall_length)  # type: str
+
+    updated_simulation_scenarios = {scenario_name: commands + [update_fall_length]
+                                    for scenario_name, commands in
+                                    SIMULATION_SCENARIOS.iteritems()}  # type: Dict[str, List[str]]
+    start_experiments(updated_simulation_scenarios, results_file_name)
+
+
+def perform_analysis(fall_length):
+    # type: (int) -> None
+
+    current_file = RESULTS_CSV_FILE.format(fall_length, SAMPLES)  # type:str
+    plt.style.use(PLOT_STYLE)
+    plot_results(csv_file=current_file)
+
+    for alternative_scenario in SIMULATION_SCENARIOS.keys():
+        if alternative_scenario != ADAPTIVE_SUPPORT_COLUMN:
+            test_hypothesis(first_scenario_column=ADAPTIVE_SUPPORT_COLUMN,
+                            second_scenario_column=alternative_scenario,
+                            alternative="less",
+                            csv_file=current_file)
+
+
 if __name__ == "__main__":
-    # start_experiments(SIMULATION_SCENARIOS)
-    #
-    # start_experiments({ADAPTIVE_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND,
-    #                                              ENABLE_STAFF_COMMAND]})
+    fall_lengths = [minutes * 60 for minutes in range(6, 11)]  # type: List[int]
 
-    # For generating training data
-    # start_experiments({NO_SUPPORT_COLUMN: []})
+    for length in fall_lengths:
+        simulate_and_store(length)
 
-    fall_lengths = [360]  # type: List[int]
-    for fall_length in fall_lengths:
-        # current_file = "data/{}_fall_100_samples_experiment_results.csv".format(fall_length)  # type:str
-        current_file = "data/experiment_results.csv"  # type:str
-        plt.style.use(PLOT_STYLE)
-        plot_results(csv_file=current_file)
-
-        for alternative_scenario in SIMULATION_SCENARIOS.keys():
-            if alternative_scenario != ADAPTIVE_SUPPORT_COLUMN:
-                test_hypothesis(first_scenario_column=ADAPTIVE_SUPPORT_COLUMN,
-                                second_scenario_column=alternative_scenario,
-                                alternative_hypothesis="less",
-                                csv_file=current_file)
+    for length in fall_lengths:
+        perform_analysis(length)

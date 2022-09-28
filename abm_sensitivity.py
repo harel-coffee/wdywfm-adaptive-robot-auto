@@ -4,7 +4,8 @@ import pandas as pd
 import seaborn
 from typing import List, Dict
 
-from abm_analysis import SIMULATION_SCENARIOS, ADAPTIVE_SUPPORT_COLUMN, run_parallel_simulations, PLOT_STYLE
+from abm_analysis import SIMULATION_SCENARIOS, ADAPTIVE_SUPPORT_COLUMN, run_parallel_simulations, PLOT_STYLE, \
+    SET_FALL_LENGTH_COMMAND
 import matplotlib.pyplot as plt
 
 EVACUATION_TIME_COLUMN = "evacuation_time"
@@ -17,7 +18,6 @@ PASSENGER_BONUS = range(2, 22, 2)  # type: List[int]
 SENSITIVITY_SAMPLES = 12  # type: int
 SENSITIVITY_DATA_FILE = "data/sensitivity_analysis.csv"  # type:str
 
-SET_FALL_LENGTH_COMMAND = "set DEFAULT_FALL_LENGTH {}"  # type:str
 SET_PASSENGER_BONUS_COMMAND = "set ROBOT_REQUEST_BONUS {}"  # type:str
 
 
