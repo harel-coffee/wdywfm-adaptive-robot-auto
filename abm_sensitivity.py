@@ -13,8 +13,8 @@ EVACUATION_TIME_COLUMN = "evacuation_time"
 PASSENGER_BONUS_COLUMN = "passenger_bonus"  # type:str
 FALL_LENGTH_COLUMN = "fall_length"  # type:str
 
-FALL_LENGTHS = range(30, 330, 30)  # type: List[int]
-PASSENGER_BONUS = range(2, 22, 2)  # type: List[int]
+FALL_LENGTHS = range(60, 660, 60)  # type: List[int]
+PASSENGER_BONUS = range(5, 55, 5)  # type: List[int]
 SENSITIVITY_SAMPLES = 12  # type: int
 SENSITIVITY_DATA_FILE = "data/sensitivity_analysis.csv"  # type:str
 
@@ -35,6 +35,7 @@ def get_heatmap(annotated=False):
     print(heatmap_data)
 
     _ = seaborn.heatmap(heatmap_data, annot=annotated, fmt=".1f")
+    plt.savefig("img/sensitivity_analysis.png")
     plt.show()
 
 
@@ -65,6 +66,5 @@ def generate_data_for_analysis():
 
 if __name__ == "__main__":
     plt.style.use(PLOT_STYLE)
-
-    # main()
+    generate_data_for_analysis()
     get_heatmap(annotated=False)

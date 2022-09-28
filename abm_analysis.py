@@ -239,12 +239,29 @@ def simulate_and_store(fall_length):
     start_experiments(updated_simulation_scenarios, results_file_name)
 
 
+def get_current_file_metrics(current_file):
+    # type: (str) -> Dict[str, float]
+    results_dataframe = get_dataframe(current_file)  # type: pd.DataFrame
+    metrics = {}  # type: Dict[str, float]
+
+    for scenario in SIMULATION_SCENARIOS.keys():
+        metrics["{}_mean".format(scenario)] = results_dataframe[scenario].mean()
+        metrics["{}_std".format(scenario)] = results_dataframe[scenario].std()
+        metrics["{}_median".format(scenario)] = results_dataframe[scenario].median()
+        metrics["{}_min".format(scenario)] = results_dataframe[scenario].min()
+        metrics["{}_max".format(scenario)] = results_dataframe[scenario].max()
+
+    return metrics
+
+
 def perform_analysis(fall_length):
-    # type: (int) -> None
+    # type: (int) -> Dict[str, float]
 
     current_file = RESULTS_CSV_FILE.format(fall_length, SAMPLES)  # type:str
     plt.style.use(PLOT_STYLE)
     plot_results(csv_file=current_file)
+    current_file_metrics = get_current_file_metrics(current_file)  # type: Dict[str, float]
+    current_file_metrics["fall_length"] = fall_length
 
     for alternative_scenario in SIMULATION_SCENARIOS.keys():
         if alternative_scenario != ADAPTIVE_SUPPORT_COLUMN:
@@ -253,12 +270,14 @@ def perform_analysis(fall_length):
                             alternative="less",
                             csv_file=current_file)
 
+    return current_file_metrics
+
 
 if __name__ == "__main__":
-    fall_lengths = [minutes * 60 for minutes in range(6, 11)]  # type: List[int]
+    fall_lengths = [minutes * 60 for minutes in range(1, 11)]  # type: List[int]
 
-    for length in fall_lengths:
-        simulate_and_store(length)
+    # for length in fall_lengths:
+    #     simulate_and_store(length)
 
-    for length in fall_lengths:
-        perform_analysis(length)
+    metrics_dataframe = pd.DataFrame([perform_analysis(length) for length in fall_lengths])  # type: pd.DataFrame
+    metrics_dataframe.to_csv("data/metrics.csv")
