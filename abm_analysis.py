@@ -249,16 +249,16 @@ def simulate_and_store(fall_length):
 def get_current_file_metrics(current_file):
     # type: (str) -> Dict[str, float]
     results_dataframe = get_dataframe(current_file)  # type: pd.DataFrame
-    metrics = {}  # type: Dict[str, float]
+    metrics_dict = {}  # type: Dict[str, float]
 
     for scenario in SIMULATION_SCENARIOS.keys():
-        metrics["{}_mean".format(scenario)] = results_dataframe[scenario].mean()
-        metrics["{}_std".format(scenario)] = results_dataframe[scenario].std()
-        metrics["{}_median".format(scenario)] = results_dataframe[scenario].median()
-        metrics["{}_min".format(scenario)] = results_dataframe[scenario].min()
-        metrics["{}_max".format(scenario)] = results_dataframe[scenario].max()
+        metrics_dict["{}_mean".format(scenario)] = results_dataframe[scenario].mean()
+        metrics_dict["{}_std".format(scenario)] = results_dataframe[scenario].std()
+        metrics_dict["{}_median".format(scenario)] = results_dataframe[scenario].median()
+        metrics_dict["{}_min".format(scenario)] = results_dataframe[scenario].min()
+        metrics_dict["{}_max".format(scenario)] = results_dataframe[scenario].max()
 
-    return metrics
+    return metrics_dict
 
 
 def perform_analysis(fall_length):
