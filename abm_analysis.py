@@ -1,3 +1,4 @@
+import math
 import multiprocessing
 import time
 import traceback
@@ -46,6 +47,7 @@ SIMULATION_SCENARIOS = {NO_SUPPORT_COLUMN: [],
                                                   ENABLE_STAFF_COMMAND]}  # type: Dict[str, List[str]]
 
 SAMPLES = 100  # type:int
+MAX_NETLOGO_TICKS = 2000  # type: int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -88,13 +90,16 @@ def run_simulation(simulation_id, post_setup_commands):
 
         metrics_dataframe = netlogo_link.repeat_report(
             netlogo_reporter=[TURTLE_PRESENT_REPORTER, EVACUATED_REPORTER, DEAD_REPORTER],
-            reps=2000)  # type: pd.DataFrame
+            reps=MAX_NETLOGO_TICKS)  # type: pd.DataFrame
 
         evacuation_finished = metrics_dataframe[
             metrics_dataframe[TURTLE_PRESENT_REPORTER] == metrics_dataframe[DEAD_REPORTER]]
 
         evacuation_time = evacuation_finished.index.min()  # type: float
         print("id:{} seed:{} evacuation time {}".format(simulation_id, current_seed, evacuation_time))
+        if math.isnan(evacuation_time):
+            metrics_dataframe.to_csv("data/nan_df.csv")
+            print("DEBUG!!! info to data/nan_df.csv")
 
         return evacuation_time
     except NetLogoException:
@@ -183,10 +188,12 @@ def plot_results(csv_file, samples_in_title=False):
         title = "{} samples".format(len(results_dataframe))
     _ = sns.violinplot(data=results_dataframe).set_title(title)
     plt.savefig("img/" + file_description + "_violin_plot.png")
+    plt.savefig("img/" + file_description + "_violin_plot.eps")
     plt.show()
 
     _ = sns.stripplot(data=results_dataframe, jitter=True).set_title(title)
     plt.savefig("img/" + file_description + "_strip_plot.png")
+    plt.savefig("img/" + file_description + "_strip_plot.eps")
     plt.show()
 
 
@@ -279,5 +286,5 @@ if __name__ == "__main__":
     # for length in fall_lengths:
     #     simulate_and_store(length)
 
-    metrics_dataframe = pd.DataFrame([perform_analysis(length) for length in fall_lengths])  # type: pd.DataFrame
-    metrics_dataframe.to_csv("data/metrics.csv")
+    metrics = pd.DataFrame([perform_analysis(length) for length in fall_lengths])  # type: pd.DataFrame
+    metrics.to_csv("data/metrics.csv")

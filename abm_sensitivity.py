@@ -15,7 +15,12 @@ FALL_LENGTH_COLUMN = "fall_length"  # type:str
 
 FALL_LENGTHS = range(60, 660, 60)  # type: List[int]
 PASSENGER_BONUS = range(5, 55, 5)  # type: List[int]
-SENSITIVITY_SAMPLES = 12  # type: int
+SENSITIVITY_SAMPLES = 30  # type: int
+
+# FALL_LENGTHS = [60, 600]  # type: List[int]
+# PASSENGER_BONUS = [5, 50]  # type: List[int]
+# SENSITIVITY_SAMPLES = 30  # type: int
+
 SENSITIVITY_DATA_FILE = "data/sensitivity_analysis.csv"  # type:str
 
 SET_PASSENGER_BONUS_COMMAND = "set ROBOT_REQUEST_BONUS {}"  # type:str
@@ -34,7 +39,7 @@ def get_heatmap(annotated=False):
 
     print(heatmap_data)
 
-    _ = seaborn.heatmap(heatmap_data, annot=annotated, fmt=".1f")
+    _ = seaborn.heatmap(heatmap_data, annot=annotated, fmt=".0f", cmap="YlGnBu")
     plt.savefig("img/sensitivity_analysis.eps", format="eps")
     plt.savefig("img/sensitivity_analysis.png", format="png")
 
@@ -68,5 +73,5 @@ def generate_data_for_analysis():
 
 if __name__ == "__main__":
     plt.style.use(PLOT_STYLE)
-    # generate_data_for_analysis()
-    get_heatmap(annotated=False)
+    generate_data_for_analysis()
+    get_heatmap(annotated=True)
