@@ -1,12 +1,13 @@
 import itertools
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn
+from matplotlib.axes import Axes
 from typing import List, Dict
 
 from abm_analysis import SIMULATION_SCENARIOS, ADAPTIVE_SUPPORT_COLUMN, run_parallel_simulations, PLOT_STYLE, \
     SET_FALL_LENGTH_COMMAND
-import matplotlib.pyplot as plt
 
 EVACUATION_TIME_COLUMN = "evacuation_time"
 
@@ -39,9 +40,13 @@ def get_heatmap(annotated=False):
 
     print(heatmap_data)
 
-    _ = seaborn.heatmap(heatmap_data, annot=annotated, fmt=".0f", cmap="YlGnBu")
-    plt.savefig("img/sensitivity_analysis.eps", format="eps")
-    plt.savefig("img/sensitivity_analysis.png", format="png")
+    axes = seaborn.heatmap(heatmap_data, annot=annotated, fmt=".0f", cmap="YlGnBu")  # type: Axes
+    axes.set(xlabel="Helping Effect Increase (%)", ylabel="Fall length (s)")
+    new_x_labels = [int(100 * float(label.get_text())) for label in axes.get_xticklabels()]  # type: List[int]
+    axes.set_xticklabels(new_x_labels)
+
+    plt.savefig("img/sensitivity_analysis.eps", format="eps", bbox_inches='tight', pad_inches=0)
+    plt.savefig("img/sensitivity_analysis.png", format="png", bbox_inches='tight', pad_inches=0)
 
     plt.show()
 
