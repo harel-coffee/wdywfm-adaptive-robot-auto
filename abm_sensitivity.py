@@ -31,7 +31,7 @@ def get_heatmap(annotated=False):
     experiment_data = experiment_data.dropna()
 
     consolidated_data = experiment_data.groupby(
-        [PASSENGER_BONUS_COLUMN, FALL_LENGTH_COLUMN]).median()  # type: pd.DataFrame
+        [PASSENGER_BONUS_COLUMN, FALL_LENGTH_COLUMN]).mean()  # type: pd.DataFrame
 
     heatmap_data = consolidated_data.pivot_table(values=EVACUATION_TIME_COLUMN,
                                                  index=FALL_LENGTH_COLUMN,
@@ -73,5 +73,5 @@ def generate_data_for_analysis():
 
 if __name__ == "__main__":
     plt.style.use(PLOT_STYLE)
-    generate_data_for_analysis()
+    # generate_data_for_analysis()
     get_heatmap(annotated=True)

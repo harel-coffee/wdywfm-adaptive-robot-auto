@@ -30,12 +30,12 @@ SET_SIMULATION_ID_COMMAND = "set SIMULATION_ID {}"  # type:str
 SEED_SIMULATION_REPORTER = "seed-simulation"
 
 RESULTS_CSV_FILE = "data/{}_fall_{}_samples_experiment_results.csv"  # type:str
-NO_SUPPORT_COLUMN = "no-support"  # type:str
 
 ENABLE_STAFF_COMMAND = "set REQUEST_STAFF_SUPPORT TRUE"  # type:str
 ENABLE_PASSENGER_COMMAND = "set REQUEST_BYSTANDER_SUPPORT TRUE"
 SET_FALL_LENGTH_COMMAND = "set DEFAULT_FALL_LENGTH {}"  # type:str
 
+NO_SUPPORT_COLUMN = "no-support"  # type:str
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
 ONLY_PASSENGER_SUPPORT_COLUMN = "passenger-support"  # type:str
 ADAPTIVE_SUPPORT_COLUMN = "adaptive-support"
@@ -180,20 +180,27 @@ def plot_results(csv_file, samples_in_title=False):
     # type: (str, bool) -> None
     file_description = Path(csv_file).stem  # type: str
     results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
+    results_dataframe = results_dataframe.rename(columns={
+        NO_SUPPORT_COLUMN: "No Support",
+        ONLY_STAFF_SUPPORT_COLUMN: "Proself-Oriented",
+        ONLY_PASSENGER_SUPPORT_COLUMN: "Prosocial-Oriented",
+        ADAPTIVE_SUPPORT_COLUMN: "Identity-Aware"
+    })
 
     print(results_dataframe.describe())
 
     title = ""
+    order = ["No Support", "Prosocial-Oriented", "Proself-Oriented", "Identity-Aware"]  # type: List[str]
     if samples_in_title:
         title = "{} samples".format(len(results_dataframe))
-    _ = sns.violinplot(data=results_dataframe).set_title(title)
-    plt.savefig("img/" + file_description + "_violin_plot.png")
-    plt.savefig("img/" + file_description + "_violin_plot.eps")
+    _ = sns.violinplot(data=results_dataframe, order=order).set_title(title)
+    plt.savefig("img/" + file_description + "_violin_plot.png", bbox_inches='tight', pad_inches=0)
+    plt.savefig("img/" + file_description + "_violin_plot.eps", bbox_inches='tight', pad_inches=0)
     plt.show()
 
-    _ = sns.stripplot(data=results_dataframe, jitter=True).set_title(title)
-    plt.savefig("img/" + file_description + "_strip_plot.png")
-    plt.savefig("img/" + file_description + "_strip_plot.eps")
+    _ = sns.stripplot(data=results_dataframe, order=order, jitter=True).set_title(title)
+    plt.savefig("img/" + file_description + "_strip_plot.png", bbox_inches='tight', pad_inches=0)
+    plt.savefig("img/" + file_description + "_strip_plot.eps", bbox_inches='tight', pad_inches=0)
     plt.show()
 
 
