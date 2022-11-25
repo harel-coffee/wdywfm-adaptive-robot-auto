@@ -184,13 +184,13 @@ def plot_results(csv_file, samples_in_title=False):
         NO_SUPPORT_COLUMN: "No Support",
         ONLY_STAFF_SUPPORT_COLUMN: "Proself-Oriented",
         ONLY_PASSENGER_SUPPORT_COLUMN: "Prosocial-Oriented",
-        ADAPTIVE_SUPPORT_COLUMN: "Identity-Aware"
+        ADAPTIVE_SUPPORT_COLUMN: "Adaptive"
     })
 
     print(results_dataframe.describe())
 
     title = ""
-    order = ["No Support", "Prosocial-Oriented", "Proself-Oriented", "Identity-Aware"]  # type: List[str]
+    order = ["No Support", "Prosocial-Oriented", "Proself-Oriented", "Adaptive"]  # type: List[str]
     if samples_in_title:
         title = "{} samples".format(len(results_dataframe))
     _ = sns.violinplot(data=results_dataframe, order=order).set_title(title)
