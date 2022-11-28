@@ -9,6 +9,7 @@ from keras import layers
 from keras import models
 from keras.callbacks import History
 from keras.layers import Dropout
+from matplotlib import pyplot as plt
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
@@ -17,6 +18,12 @@ from tensorflow.python.keras.models import load_model
 from typing import List
 
 from environment import GROUP_IDENTITY_CLASS
+from gamemodel import SHARED_IDENTITY_TYPE, PERSONAL_IDENTITY_TYPE
+
+TYPE_TO_CLASS = {
+    PERSONAL_IDENTITY_TYPE: 0,
+    SHARED_IDENTITY_TYPE: 1
+}
 
 
 class SyntheticTypeAnalyser(object):
@@ -36,16 +43,42 @@ class SyntheticTypeAnalyser(object):
 
             self.network.compile(loss="binary_crossentropy", optimizer="adam", metrics=[metric, "accuracy"])
 
+    def do_sanity_check(self, sensor_data, person_type, batch_size):
+        # type: (np.ndarray, np.ndarray, int) -> None
+
+        logging.info("SANITY CHECK: Single instance")
+        sanity_epochs = 100  # type: int
+
+        zero_responder_index = np.where(person_type == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type:np.ndarray
+        zero_responder_features = np.expand_dims(sensor_data[zero_responder_index[0]], axis=0)  # type:np.ndarray
+        zero_responder_type = np.expand_dims(person_type[zero_responder_index[0]], axis=0)  # type:np.ndarray
+        training_history = self.network.fit(zero_responder_features,
+                                            zero_responder_type,
+                                            epochs=sanity_epochs,
+                                            batch_size=batch_size)  # type: History
+        last_recorded_accuracy = training_history.history["acc"][-1]  # type: float
+        plt.plot(training_history.history["acc"])
+        plt.title("Single sample accuracy")
+        plt.show()
+        print("last_recorded_accuracy: {}".format(last_recorded_accuracy))
+        if last_recorded_accuracy < 1.0:
+            raise Exception(
+                "On a single training instance, final accuracy is {} after {} epochs".format(last_recorded_accuracy,
+                                                                                             sanity_epochs))
+
+        selfish_index = np.where(person_type == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]  # type:np.ndarray
+
     def train(self, sensor_data, person_type, epochs, batch_size, callbacks=None):
         # type: (np.ndarray, np.ndarray, int, int, List) -> History
 
+        logging.info(self.network.summary())
         training_history = self.network.fit(sensor_data,
                                             person_type,
                                             epochs=epochs,
                                             verbose=1,
                                             callbacks=callbacks,
                                             batch_size=batch_size,
-                                            validation_split=0.33)
+                                            validation_split=0.33)  # type: History
 
         return training_history
 

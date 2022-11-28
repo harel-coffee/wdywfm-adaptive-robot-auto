@@ -12,7 +12,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils import shuffle
 from typing import Tuple, Optional
 
-from analyser import SyntheticTypeAnalyser
+from analyser import SyntheticTypeAnalyser, TYPE_TO_CLASS
 from controller import AutonomicManagerController
 from gamemodel import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 
@@ -22,11 +22,6 @@ INTERACTIONS_PER_SCENARIO = 10  # type:int
 
 MODEL_FILE = "model/trained_model.h5"  # type:str
 ENCODER_FILE = "model/encoder.pickle"  # type:str
-
-TYPE_TO_CLASS = {
-    PERSONAL_IDENTITY_TYPE: 0,
-    SHARED_IDENTITY_TYPE: 1
-}
 
 
 class EarlyStoppingByTarget(Callback):
@@ -155,12 +150,14 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
                  tf.keras.callbacks.TensorBoard(log_dir=get_log_directory()),
                  ModelCheckpoint(filepath=MODEL_FILE, monitor=early_stopping_monitor, save_best_only=True)]
 
-    training_history = type_analyser.train(sensor_data_train,
-                                           person_type_train,
-                                           epochs,
-                                           batch_size,
-                                           callbacks)
-    plot_training(training_history, metric)
+    type_analyser.do_sanity_check(sensor_data_train, person_type_train, batch_size)
+
+    # training_history = type_analyser.train(sensor_data_train,
+    #                                        person_type_train,
+    #                                        epochs,
+    #                                        batch_size,
+    #                                        callbacks)
+    # plot_training(training_history, metric)
 
     return type_analyser
 
