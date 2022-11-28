@@ -10,7 +10,7 @@ from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils import shuffle
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 from analyser import SyntheticTypeAnalyser, TYPE_TO_CLASS
 from controller import AutonomicManagerController
@@ -61,15 +61,19 @@ def get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_
     return features, target
 
 
-def plot_training(training_history, metric):
+def plot_training(training_history, metric, plot_validation=True):
     training_metric = training_history.history[metric]
-    validation_metric = training_history.history["val_" + metric]
+    legend = ["Training " + metric]  # type: List[str]
+    epoch = range(1, len(training_metric) + 1)  # type: List[int]
 
-    epoch = range(1, len(training_metric) + 1)
     plt.plot(epoch, training_metric, "r--")
-    plt.plot(epoch, validation_metric, "b-")
 
-    plt.legend(["Training " + metric, "Validation " + metric])
+    if plot_validation:
+        validation_metric = training_history.history["val_" + metric]
+        plt.plot(epoch, validation_metric, "b-")
+        legend.append("Validation " + metric)
+
+    plt.legend(legend)
     plt.xlabel("Epoch")
     plt.ylabel(metric)
 
@@ -150,7 +154,11 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
                  tf.keras.callbacks.TensorBoard(log_dir=get_log_directory()),
                  ModelCheckpoint(filepath=MODEL_FILE, monitor=early_stopping_monitor, save_best_only=True)]
 
-    type_analyser.do_sanity_check(sensor_data_train, person_type_train, batch_size)
+    training_history = type_analyser.single_sample_sanity_check(sensor_data_train,
+                                                                person_type_train,
+                                                                batch_size=batch_size,
+                                                                sanity_epochs=150)
+    plot_training(training_history, metric="acc", plot_validation=False)
 
     # training_history = type_analyser.train(sensor_data_train,
     #                                        person_type_train,

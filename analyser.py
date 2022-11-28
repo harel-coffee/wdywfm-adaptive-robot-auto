@@ -43,11 +43,10 @@ class SyntheticTypeAnalyser(object):
 
             self.network.compile(loss="binary_crossentropy", optimizer="adam", metrics=[metric, "accuracy"])
 
-    def do_sanity_check(self, sensor_data, person_type, batch_size):
-        # type: (np.ndarray, np.ndarray, int) -> None
+    def single_sample_sanity_check(self, sensor_data, person_type, sanity_epochs, batch_size):
+        # type: (np.ndarray, np.ndarray, int) -> History
 
         logging.info("SANITY CHECK: Single instance")
-        sanity_epochs = 100  # type: int
 
         zero_responder_index = np.where(person_type == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type:np.ndarray
         zero_responder_features = np.expand_dims(sensor_data[zero_responder_index[0]], axis=0)  # type:np.ndarray
@@ -57,16 +56,12 @@ class SyntheticTypeAnalyser(object):
                                             epochs=sanity_epochs,
                                             batch_size=batch_size)  # type: History
         last_recorded_accuracy = training_history.history["acc"][-1]  # type: float
-        plt.plot(training_history.history["acc"])
-        plt.title("Single sample accuracy")
-        plt.show()
         print("last_recorded_accuracy: {}".format(last_recorded_accuracy))
         if last_recorded_accuracy < 1.0:
             raise Exception(
                 "On a single training instance, final accuracy is {} after {} epochs".format(last_recorded_accuracy,
                                                                                              sanity_epochs))
-
-        selfish_index = np.where(person_type == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]  # type:np.ndarray
+        return training_history
 
     def train(self, sensor_data, person_type, epochs, batch_size, callbacks=None):
         # type: (np.ndarray, np.ndarray, int, int, List) -> History
