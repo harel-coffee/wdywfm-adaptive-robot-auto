@@ -31,7 +31,6 @@ dependencies:
   - functools32=3.2.3.2=py27_1
   - future=0.18.2=py27_0
   - futures=3.3.0=py27_0
-  - gast=0.5.3=pyhd3eb1b0_0
   - glib=2.69.1=h4ff587b_1
   - google-pasta=0.2.0=pyhd3eb1b0_0
   - grpcio=1.27.2=py27hf8bcb03_0
@@ -68,11 +67,13 @@ dependencies:
   - mkl_fft=1.0.15=py27ha843d7b_0
   - mkl_random=1.1.0=py27hd6b4f25_0
   - mock=3.0.5=py27_0
+  - natsort=5.5.0=py27_0
   - ncurses=6.3=h7f8727e_2
   - numpy=1.16.6=py27hbc911f0_0
   - numpy-base=1.16.6=py27hde5b4d6_0
   - openssl=1.1.1q=h7f8727e_0
   - pandas=0.24.2=py27he6710b0_0
+  - pathlib=1.0.1=py27_1
   - patsy=0.5.1=py27_0
   - pcre=8.45=h295c915_0
   - pip=19.3.1=py27_0
@@ -95,11 +96,6 @@ dependencies:
   - sqlite=3.38.2=hc218d9a_0
   - statsmodels=0.10.1=py27hdd07704_0
   - subprocess32=3.5.4=py27h7b6447c_0
-  - tensorboard=1.14.0=py27hf484d3e_0
-  - tensorflow=1.14.0=gpu_py27h39f1c70_0
-  - tensorflow-base=1.14.0=gpu_py27he45bfe2_0
-  - tensorflow-estimator=1.14.0=py_0
-  - tensorflow-gpu=1.14.0=h0d30ee6_0
   - termcolor=1.1.0=py27_1
   - tk=8.6.11=h1ccaba5_0
   - tornado=5.1.1=py27h7b6447c_0
@@ -113,7 +109,14 @@ dependencies:
   - yaml=0.1.7=had09818_2
   - zlib=1.2.11=h7f8727e_4
   - pip:
+    - gast==0.2.2
     - lxml==4.8.0
+    - opt-einsum==2.3.2
+    - pillow==6.2.2
     - pynetlogo==0.4.2
     - seaborn==0.9.1
+    - tensorboard==1.15.0
+    - tensorflow==1.15.0
+    - tensorflow-estimator==1.15.1
+    - tensorflow-gpu==1.15.0
 prefix: /home/cgc87/anaconda3/envs/wdywfm-adaptive-robot
