@@ -3,10 +3,28 @@ import logging
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
+from abm_analysis import run_parallel_simulations, SET_STAFF_SUPPORT_COMMAND, SET_PASSENGER_SUPPORT_COMMAND, \
+    SET_FALL_LENGTH_COMMAND
 from synthetic_runner import train_type_analyser
 
 NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
 REQUEST_RESULT_COLUMN = "offer-help"  # type:str
+
+SIMULATION_RUNS = 100  # type:int
+FALL_LENGTH = 30  # type:int
+
+ENABLE_DATA_COLLECTION_COMMAND = "set ENABLE_DATA_COLLECTION TRUE"  # type:str
+DISABLE_LOGGING_COMMAND = "set ENABLE_LOGGING FALSE"  # type:str
+DISABLE_FRAME_GENERATION_COMMAND = "  set ENABLE_FRAME_GENERATION FALSE"  # type:str
+
+CONFIGURATION_COMMANDS = [
+    SET_STAFF_SUPPORT_COMMAND.format("FALSE"),
+    SET_PASSENGER_SUPPORT_COMMAND.format("FALSE"),
+    SET_FALL_LENGTH_COMMAND.format(FALL_LENGTH),
+    ENABLE_DATA_COLLECTION_COMMAND,
+    DISABLE_LOGGING_COMMAND,
+    DISABLE_FRAME_GENERATION_COMMAND,
+]  # type: List[str]
 
 
 def get_netlogo_dataset():
@@ -23,7 +41,13 @@ def get_netlogo_dataset():
     return netlogo_sensor_data.values, netlogo_person_type.values
 
 
-def main():
+def generate_training_data(simulation_runs=None, configuration_commands=None):
+    # type: (int, List[str]) -> None
+    print("Generating training data from {} simulation runs".format(SIMULATION_RUNS))
+    _ = run_parallel_simulations(simulation_runs, configuration_commands, gui=False)
+
+
+def start_training():
     target_accuracy = None
     max_epochs = 500  # type: int
     encode_categorical_data = True  # type: bool
@@ -40,4 +64,5 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    main()
+    generate_training_data(SIMULATION_RUNS, CONFIGURATION_COMMANDS)
+    # start_training()

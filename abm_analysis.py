@@ -26,14 +26,17 @@ TURTLE_PRESENT_REPORTER = "count turtles"  # type:str
 EVACUATED_REPORTER = "number_passengers - count agents + 1"  # type:str
 DEAD_REPORTER = "count agents with [ st_dead = 1 ]"  # type:str
 
-SET_SIMULATION_ID_COMMAND = "set SIMULATION_ID {}"  # type:str
 SEED_SIMULATION_REPORTER = "seed-simulation"
 
 RESULTS_CSV_FILE = "data/{}_fall_{}_samples_experiment_results.csv"  # type:str
 
-ENABLE_STAFF_COMMAND = "set REQUEST_STAFF_SUPPORT TRUE"  # type:str
-ENABLE_PASSENGER_COMMAND = "set REQUEST_BYSTANDER_SUPPORT TRUE"
+SET_SIMULATION_ID_COMMAND = "set SIMULATION_ID {}"  # type:str
+SET_STAFF_SUPPORT_COMMAND = "set REQUEST_STAFF_SUPPORT {}"  # type: str
+SET_PASSENGER_SUPPORT_COMMAND = "set REQUEST_BYSTANDER_SUPPORT {}"  # type: str
 SET_FALL_LENGTH_COMMAND = "set DEFAULT_FALL_LENGTH {}"  # type:str
+
+ENABLE_STAFF_COMMAND = SET_STAFF_SUPPORT_COMMAND.format("TRUE")  # type:str
+ENABLE_PASSENGER_COMMAND = SET_PASSENGER_SUPPORT_COMMAND.format("TRUE")  # type:str
 
 NO_SUPPORT_COLUMN = "no-support"  # type:str
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str

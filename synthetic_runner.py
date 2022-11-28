@@ -1,9 +1,12 @@
 import logging
 import pickle
+from time import strftime
 
 import numpy as np
+import tensorflow as tf
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
 from matplotlib import pyplot as plt
+from pathlib import Path
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
@@ -45,6 +48,11 @@ class EarlyStoppingByTarget(Callback):
             if self.verbose > 0:
                 logging.info("Epoch %s: early stopping, target accuracy reached" % str(epoch))
             self.model.stop_training = True
+
+
+def get_log_directory(base_directory="logs"):
+    # type: (str) -> Path
+    return Path(base_directory) / strftime("run_%Y_%m_%d_%H_%M_%S")
 
 
 def get_synthetic_dataset(selfish_type_weight, zeroresponder_type_weight, total_samples):
@@ -145,6 +153,7 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
         logging.info("Training for best accuracy")
         early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=int(epochs * 0.02))
     callbacks = [early_stopping_callback,
+                 tf.keras.callbacks.TensorBoard(log_dir=get_log_directory()),
                  ModelCheckpoint(filepath=MODEL_FILE, monitor=early_stopping_monitor, save_best_only=True)]
 
     training_history = type_analyser.train(sensor_data_train,
