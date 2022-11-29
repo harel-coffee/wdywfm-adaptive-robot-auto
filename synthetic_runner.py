@@ -121,16 +121,17 @@ def encode_training_data(sensor_data_train):
 
 
 def train_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, encode_categorical_data,
-                        epochs=100, metric="binary_crossentropy"):
-    # type: (np.ndarray, np.ndarray, int, Optional[float], bool, int, str) -> SyntheticTypeAnalyser
+                        epochs=100, metric="binary_crossentropy", learning_rate=0.001):
+    # type: (np.ndarray, np.ndarray, int, Optional[float], bool, int, str, float) -> SyntheticTypeAnalyser
 
     if encode_categorical_data:
         sensor_data_train = encode_training_data(sensor_data_train)
 
     _, num_features = sensor_data_train.shape
-    logging.info("Training data shape: : {}".format(sensor_data_train.shape))
+    logging.info("Training data shape: : {}. Learning rate {}".format(sensor_data_train.shape, learning_rate))
 
-    type_analyser = SyntheticTypeAnalyser(num_features=num_features, metric=metric)  # type: SyntheticTypeAnalyser
+    type_analyser = SyntheticTypeAnalyser(num_features=num_features, metric=metric,
+                                          learning_rate=learning_rate)  # type: SyntheticTypeAnalyser
 
     zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type: np.ndarray
     selfish_index = np.where(person_type_train == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]  # type: np.ndarray
@@ -152,7 +153,7 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
                                                         verbose=1)
     else:
         logging.info("Training for best accuracy")
-        early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=int(epochs * 0.02))
+        early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=int(epochs * 0.1))
 
     # start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size=batch_size)
     callbacks = [early_stopping_callback,
@@ -169,7 +170,7 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
 
 
 def start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size):
-    # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, int, int) -> None
+    # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, int) -> None
 
     logging.info("SANITY CHECK: Single sample")
     zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type:np.ndarray

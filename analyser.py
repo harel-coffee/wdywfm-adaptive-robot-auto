@@ -2,6 +2,7 @@ import logging
 import subprocess
 from subprocess import call
 
+import keras
 import numpy as np
 import pandas as pd
 from imblearn.over_sampling import RandomOverSampler
@@ -9,7 +10,7 @@ from keras import layers
 from keras import models
 from keras.callbacks import History
 from keras.layers import Dropout
-from matplotlib import pyplot as plt
+from keras.optimizers import Optimizer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
@@ -28,7 +29,7 @@ TYPE_TO_CLASS = {
 
 class SyntheticTypeAnalyser(object):
 
-    def __init__(self, num_features=0, metric="", model_file=None):
+    def __init__(self, num_features=0, metric="", learning_rate=0.001, model_file=None):
         if model_file is not None:
             self.network = load_model(model_file)  # type: models.Sequential
             logging.info("Model loaded from {}".format(model_file))
@@ -41,7 +42,8 @@ class SyntheticTypeAnalyser(object):
             self.network.add(Dropout(rate=0.4))
             self.network.add(layers.Dense(units=1, activation="sigmoid"))
 
-            self.network.compile(loss="binary_crossentropy", optimizer="adam", metrics=[metric, "accuracy"])
+            optimizer = keras.optimizers.Adam(lr=learning_rate)  # type: Optimizer
+            self.network.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=[metric, "accuracy"])
 
     def do_sanity_check(self, sensor_data, person_type, epochs, batch_size):
         # type: (np.ndarray, np.ndarray, int, int) -> History

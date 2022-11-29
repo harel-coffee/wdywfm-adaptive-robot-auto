@@ -11,6 +11,7 @@ from synthetic_runner import train_type_analyser
 
 MAX_EPOCHS = 500  # type: int
 TRAINING_BATCH_SIZE = 100  # type: int
+LEARNING_RATE = 0.0001  # type: float
 
 TRAINING_DATA_DIRECTORY = "data/training"
 NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
@@ -55,8 +56,8 @@ def generate_training_data(simulation_runs=None, configuration_commands=None):
     _ = run_parallel_simulations(simulation_runs, configuration_commands, gui=False)
 
 
-def start_training(max_epochs, training_batch_size):
-    # type: (int, int) -> None
+def start_training(max_epochs, training_batch_size, learning_rate):
+    # type: (int, int,float) -> None
 
     target_accuracy = None
     encode_categorical_data = True  # type: bool
@@ -67,10 +68,10 @@ def start_training(max_epochs, training_batch_size):
                                                                                                 test_size=0.33,
                                                                                                 random_state=0)
     _ = train_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
-                            encode_categorical_data, max_epochs)
+                            encode_categorical_data, max_epochs, learning_rate=learning_rate)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # generate_training_data(SIMULATION_RUNS, CONFIGURATION_COMMANDS)
-    start_training(MAX_EPOCHS, TRAINING_BATCH_SIZE)
+    start_training(MAX_EPOCHS, TRAINING_BATCH_SIZE, LEARNING_RATE)
