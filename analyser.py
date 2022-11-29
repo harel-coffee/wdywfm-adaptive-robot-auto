@@ -43,24 +43,20 @@ class SyntheticTypeAnalyser(object):
 
             self.network.compile(loss="binary_crossentropy", optimizer="adam", metrics=[metric, "accuracy"])
 
-    def single_sample_sanity_check(self, sensor_data, person_type, sanity_epochs, batch_size):
-        # type: (np.ndarray, np.ndarray, int) -> History
+    def do_sanity_check(self, sensor_data, person_type, epochs, batch_size):
+        # type: (np.ndarray, np.ndarray, int, int) -> History
 
-        logging.info("SANITY CHECK: Single instance")
-
-        zero_responder_index = np.where(person_type == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type:np.ndarray
-        zero_responder_features = np.expand_dims(sensor_data[zero_responder_index[0]], axis=0)  # type:np.ndarray
-        zero_responder_type = np.expand_dims(person_type[zero_responder_index[0]], axis=0)  # type:np.ndarray
-        training_history = self.network.fit(zero_responder_features,
-                                            zero_responder_type,
-                                            epochs=sanity_epochs,
+        training_history = self.network.fit(sensor_data,
+                                            person_type,
+                                            epochs=epochs,
                                             batch_size=batch_size)  # type: History
         last_recorded_accuracy = training_history.history["acc"][-1]  # type: float
-        print("last_recorded_accuracy: {}".format(last_recorded_accuracy))
+        logging.info(
+            "last_recorded_accuracy: {}. Training samples: {}".format(last_recorded_accuracy, sensor_data.shape[0]))
         if last_recorded_accuracy < 1.0:
             raise Exception(
-                "On a single training instance, final accuracy is {} after {} epochs".format(last_recorded_accuracy,
-                                                                                             sanity_epochs))
+                "On sanity check, final accuracy is {} after {} epochs".format(last_recorded_accuracy,
+                                                                               epochs))
         return training_history
 
     def train(self, sensor_data, person_type, epochs, batch_size, callbacks=None):

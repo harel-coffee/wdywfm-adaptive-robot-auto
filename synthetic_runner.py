@@ -4,7 +4,7 @@ import pickle
 
 import numpy as np
 import tensorflow as tf
-from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping
+from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping, History
 from matplotlib import pyplot as plt
 from sklearn.datasets import make_classification
 from sklearn.model_selection import train_test_split
@@ -17,6 +17,9 @@ from controller import AutonomicManagerController
 from gamemodel import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 
 SEED = 0  # type:int
+np.random.seed(SEED)
+tf.set_random_seed(SEED)
+
 NUM_SCENARIOS = 10  # type:int
 INTERACTIONS_PER_SCENARIO = 10  # type:int
 
@@ -150,24 +153,47 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
     else:
         logging.info("Training for best accuracy")
         early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=int(epochs * 0.02))
+
+    # start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size=batch_size)
     callbacks = [early_stopping_callback,
                  tf.keras.callbacks.TensorBoard(log_dir=get_log_directory()),
                  ModelCheckpoint(filepath=MODEL_FILE, monitor=early_stopping_monitor, save_best_only=True)]
-
-    training_history = type_analyser.single_sample_sanity_check(sensor_data_train,
-                                                                person_type_train,
-                                                                batch_size=batch_size,
-                                                                sanity_epochs=150)
-    plot_training(training_history, metric="acc", plot_validation=False)
-
-    # training_history = type_analyser.train(sensor_data_train,
-    #                                        person_type_train,
-    #                                        epochs,
-    #                                        batch_size,
-    #                                        callbacks)
-    # plot_training(training_history, metric)
+    training_history = type_analyser.train(sensor_data_train,
+                                           person_type_train,
+                                           epochs,
+                                           batch_size,
+                                           callbacks)
+    plot_training(training_history, metric)
 
     return type_analyser
+
+
+def start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size):
+    # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, int, int) -> None
+
+    logging.info("SANITY CHECK: Single sample")
+    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type:np.ndarray
+
+    single_sample_features = np.expand_dims(sensor_data_train[zero_responder_index[0]], axis=0)  # type:np.ndarray
+    single_sample_type = np.expand_dims(person_type_train[zero_responder_index[0]], axis=0)  # type:np.ndarray
+
+    training_history = type_analyser.do_sanity_check(single_sample_features,
+                                                     single_sample_type,
+                                                     batch_size=batch_size,
+                                                     epochs=150)  # type: History
+    plot_training(training_history, metric="acc", plot_validation=False)
+
+    logging.info("SANITY CHECK: Many samples")
+    sanity_check_samples = 10  # type:int
+    sanity_check_index = np.random.choice(sensor_data_train.shape[0], size=sanity_check_samples)  # type:np.ndarray
+    many_samples_features = sensor_data_train[sanity_check_index]  # type:np.ndarray
+    many_samples_type = person_type_train[sanity_check_index]  # type:np.ndarray
+
+    training_history = type_analyser.do_sanity_check(many_samples_features,
+                                                     many_samples_type,
+                                                     batch_size=batch_size,
+                                                     epochs=1000)  # type: History
+    plot_training(training_history, metric="acc", plot_validation=False)
 
 
 def run_scenario(robot_controller, emergency_environment, num_scenarios):
@@ -199,8 +225,6 @@ def run_scenario(robot_controller, emergency_environment, num_scenarios):
 
 
 def main():
-    np.random.seed(SEED)
-
     zeroresponder_type_weight = 0.8  # According to: "Modelling social identification and helping in evacuation simulation"
     selfish_type_weight = 1 - zeroresponder_type_weight
     # target_accuracy = 0.65
