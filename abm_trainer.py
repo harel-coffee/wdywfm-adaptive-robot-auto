@@ -10,9 +10,10 @@ from abm_analysis import run_parallel_simulations, SET_STAFF_SUPPORT_COMMAND, SE
 from synthetic_runner import train_type_analyser
 
 MAX_EPOCHS = 500  # type: int
-TRAINING_BATCH_SIZE = 100  # type: int
+EARLY_STOPPING_PATIENCE = int(MAX_EPOCHS * 0.15)  # type: int
+TRAINING_BATCH_SIZE = 128  # type: int
 LEARNING_RATE = 0.0001  # type: float
-UNITS_PER_LAYER = [32, 32]  # type: List[int]
+UNITS_PER_LAYER = [64, 64, 64]  # type: List[int]
 
 TRAINING_DATA_DIRECTORY = "data/training"
 NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
@@ -57,7 +58,8 @@ def generate_training_data(simulation_runs=None, configuration_commands=None):
     _ = run_parallel_simulations(simulation_runs, configuration_commands, gui=False)
 
 
-def start_training(max_epochs, training_batch_size, learning_rate, units_per_layer):
+def start_training(max_epochs, training_batch_size, learning_rate, units_per_layer,
+                   early_stopping_patience):
     # type: (int, int,float, List[int]) -> None
 
     target_accuracy = None
@@ -70,10 +72,12 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
                                                                                                 random_state=0)
     _ = train_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
                             encode_categorical_data, units_per_layer, max_epochs,
-                            learning_rate=learning_rate)
+                            learning_rate=learning_rate,
+                            patience=early_stopping_patience)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     # generate_training_data(SIMULATION_RUNS, CONFIGURATION_COMMANDS)
-    start_training(MAX_EPOCHS, TRAINING_BATCH_SIZE, LEARNING_RATE, UNITS_PER_LAYER)
+    start_training(MAX_EPOCHS, TRAINING_BATCH_SIZE, LEARNING_RATE, UNITS_PER_LAYER,
+                   EARLY_STOPPING_PATIENCE)

@@ -126,8 +126,9 @@ def get_index_by_value(labels, label_value):
 
 
 def train_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, encode_categorical_data,
-                        units_per_layer, epochs=100, metric="binary_crossentropy", learning_rate=0.001):
-    # type: (np.ndarray, np.ndarray, int, Optional[float], bool, List[int], int, str, float) -> SyntheticTypeAnalyser
+                        units_per_layer, epochs=100, metric="binary_crossentropy", learning_rate=0.001,
+                        patience=0):
+    # type: (np.ndarray, np.ndarray, int, Optional[float], bool, List[int], int, str, float, int) -> SyntheticTypeAnalyser
 
     if encode_categorical_data:
         sensor_data_train = encode_training_data(sensor_data_train)
@@ -167,7 +168,7 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
                                                         verbose=1)
     else:
         logging.info("Training for best accuracy")
-        early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=int(epochs * 0.1))
+        early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=patience)
 
     # start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size=batch_size)
     callbacks = [early_stopping_callback,
