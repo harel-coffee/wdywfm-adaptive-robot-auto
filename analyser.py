@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.utils import resample
 from tensorflow.python.keras.models import load_model
-from typing import List
+from typing import List, Tuple
 
 from environment import GROUP_IDENTITY_CLASS
 from gamemodel import SHARED_IDENTITY_TYPE, PERSONAL_IDENTITY_TYPE
@@ -29,17 +29,24 @@ TYPE_TO_CLASS = {
 
 class SyntheticTypeAnalyser(object):
 
-    def __init__(self, num_features=0, metric="", learning_rate=0.001, model_file=None):
+    def __init__(self, num_features=0, metric="", learning_rate=0.001, units_per_layer=None, model_file=None):
+
         if model_file is not None:
             self.network = load_model(model_file)  # type: models.Sequential
             logging.info("Model loaded from {}".format(model_file))
         else:
             self.network = models.Sequential()  # type: models.Sequential
 
-            self.network.add(layers.Dense(units=num_features, activation="relu", input_shape=(num_features,)))
+            if units_per_layer is None:
+                units_per_layer = [num_features, int(num_features / 2)]  # type: List[int]
+
+            self.network.add(layers.Dense(units=units_per_layer[0], activation="relu", input_shape=(num_features,)))
             self.network.add(Dropout(rate=0.4))
-            self.network.add(layers.Dense(units=int(num_features / 2), activation="relu"))
-            self.network.add(Dropout(rate=0.4))
+
+            for units in units_per_layer[1:]:
+                self.network.add(layers.Dense(units=units, activation="relu"))
+                self.network.add(Dropout(rate=0.4))
+
             self.network.add(layers.Dense(units=1, activation="sigmoid"))
 
             optimizer = keras.optimizers.Adam(lr=learning_rate)  # type: Optimizer
@@ -61,17 +68,25 @@ class SyntheticTypeAnalyser(object):
                                                                                epochs))
         return training_history
 
-    def train(self, sensor_data, person_type, epochs, batch_size, callbacks=None):
-        # type: (np.ndarray, np.ndarray, int, int, List) -> History
+    def train(self, sensor_data, person_type, epochs, batch_size, callbacks=None,
+              validation_split=0.33):
+        # type: (np.ndarray, np.ndarray, int, int, List, float) -> History
 
         logging.info(self.network.summary())
-        training_history = self.network.fit(sensor_data,
-                                            person_type,
+        sensor_data_training, sensor_data_validation, person_type_training, person_type_validation = train_test_split(
+            sensor_data,
+            person_type,
+            stratify=person_type,
+            test_size=validation_split)  # type: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+
+        training_history = self.network.fit(sensor_data_training,
+                                            person_type_training,
                                             epochs=epochs,
                                             verbose=1,
                                             callbacks=callbacks,
                                             batch_size=batch_size,
-                                            validation_split=0.33)  # type: History
+                                            validation_data=(
+                                                sensor_data_validation, person_type_validation))  # type: History
 
         return training_history
 

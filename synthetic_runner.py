@@ -100,8 +100,8 @@ def under_sample(first_index, second_index, original_features, original_classes)
     under_sampled_classes = np.hstack(
         (original_classes[majority_sample_index], original_classes[minority_index]))  # type: np.ndarray
 
-    under_sampled_features, under_sampled_classes = shuffle(under_sampled_features, under_sampled_classes)
-    return under_sampled_features, under_sampled_classes
+    permutation_index = np.random.permutation(len(under_sampled_features))  # type:np.ndarray
+    return under_sampled_features[permutation_index], under_sampled_classes[permutation_index]
 
 
 def encode_training_data(sensor_data_train):
@@ -120,9 +120,14 @@ def encode_training_data(sensor_data_train):
     return sensor_data_train
 
 
+def get_index_by_value(labels, label_value):
+    # type: (np.ndarray, int) -> np.ndarray
+    return np.where(labels == label_value)[0]
+
+
 def train_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, encode_categorical_data,
-                        epochs=100, metric="binary_crossentropy", learning_rate=0.001):
-    # type: (np.ndarray, np.ndarray, int, Optional[float], bool, int, str, float) -> SyntheticTypeAnalyser
+                        units_per_layer, epochs=100, metric="binary_crossentropy", learning_rate=0.001):
+    # type: (np.ndarray, np.ndarray, int, Optional[float], bool, List[int], int, str, float) -> SyntheticTypeAnalyser
 
     if encode_categorical_data:
         sensor_data_train = encode_training_data(sensor_data_train)
@@ -130,11 +135,14 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
     _, num_features = sensor_data_train.shape
     logging.info("Training data shape: : {}. Learning rate {}".format(sensor_data_train.shape, learning_rate))
 
-    type_analyser = SyntheticTypeAnalyser(num_features=num_features, metric=metric,
-                                          learning_rate=learning_rate)  # type: SyntheticTypeAnalyser
+    type_analyser = SyntheticTypeAnalyser(num_features=num_features,
+                                          metric=metric,
+                                          learning_rate=learning_rate,
+                                          units_per_layer=units_per_layer)  # type: SyntheticTypeAnalyser
 
-    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type: np.ndarray
-    selfish_index = np.where(person_type_train == TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])[0]  # type: np.ndarray
+    zero_responder_index = get_index_by_value(person_type_train,
+                                              TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])  # type: np.ndarray
+    selfish_index = get_index_by_value(person_type_train, TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])  # type: np.ndarray
 
     logging.info("Training data -> Zero-responders: %d" % len(zero_responder_index))
     logging.info("Training data -> Selfish: %d" % len(selfish_index))
@@ -145,6 +153,12 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
                                                             second_index=selfish_index,
                                                             original_features=sensor_data_train,
                                                             original_classes=person_type_train)
+        zero_responder_index = get_index_by_value(person_type_train,
+                                                  TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])  # type: np.ndarray
+        selfish_index = get_index_by_value(person_type_train, TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])  # type: np.ndarray
+
+        logging.info("Training data -> Zero-responders: %d" % len(zero_responder_index))
+        logging.info("Training data -> Selfish: %d" % len(selfish_index))
 
     early_stopping_monitor = 'val_binary_crossentropy'
     if target_accuracy is not None:
@@ -173,7 +187,7 @@ def start_sanity_check(type_analyser, sensor_data_train, person_type_train, batc
     # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, int) -> None
 
     logging.info("SANITY CHECK: Single sample")
-    zero_responder_index = np.where(person_type_train == TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])[0]  # type:np.ndarray
+    zero_responder_index = get_index_by_value(person_type_train, TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])  # type:np.ndarray
 
     single_sample_features = np.expand_dims(sensor_data_train[zero_responder_index[0]], axis=0)  # type:np.ndarray
     single_sample_type = np.expand_dims(person_type_train[zero_responder_index[0]], axis=0)  # type:np.ndarray
