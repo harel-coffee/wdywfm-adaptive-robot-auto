@@ -18,7 +18,7 @@ from typing import List, Tuple, Dict, Optional
 PLOT_STYLE = 'seaborn-darkgrid'
 
 NETLOGO_PROJECT_DIRECTORY = "/home/cgc87/github/robot-assisted-evacuation/"  # type:str
-MODEL_FILE = NETLOGO_PROJECT_DIRECTORY + "/impact2.10.7/v2.11.0.nlogo"  # type:str
+NETLOGO_MODEL_FILE = NETLOGO_PROJECT_DIRECTORY + "/impact2.10.7/v2.11.0.nlogo"  # type:str
 NETLOGO_HOME = "/home/cgc87/netlogo-5.3.1-64"  # type:str
 NETLOGO_VERSION = "5"  # type:str
 
@@ -121,7 +121,7 @@ def initialize(gui):
     netlogo_link = pyNetLogo.NetLogoLink(netlogo_home=NETLOGO_HOME,
                                          netlogo_version=NETLOGO_VERSION,
                                          gui=gui)  # type: pyNetLogo.NetLogoLink
-    netlogo_link.load_model(MODEL_FILE)
+    netlogo_link.load_model(NETLOGO_MODEL_FILE)
 
 
 def start_experiments(experiment_configurations, results_file):

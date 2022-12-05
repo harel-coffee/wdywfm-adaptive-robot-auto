@@ -68,16 +68,11 @@ class SyntheticTypeAnalyser(object):
                                                                                epochs))
         return training_history
 
-    def train(self, sensor_data, person_type, epochs, batch_size, callbacks=None,
-              validation_split=0.33):
-        # type: (np.ndarray, np.ndarray, int, int, List, float) -> History
+    def train(self, sensor_data_training, person_type_training, sensor_data_validation, person_type_validation,
+              epochs, batch_size, callbacks=None):
+        # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int, List) -> History
 
         logging.info(self.network.summary())
-        sensor_data_training, sensor_data_validation, person_type_training, person_type_validation = train_test_split(
-            sensor_data,
-            person_type,
-            stratify=person_type,
-            test_size=validation_split)  # type: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
 
         training_history = self.network.fit(sensor_data_training,
                                             person_type_training,
@@ -91,9 +86,11 @@ class SyntheticTypeAnalyser(object):
         return training_history
 
     def obtain_probabilities(self, sensor_data):
+        # type: (np.ndarray) -> np.ndarray
         return self.network.predict(sensor_data)
 
     def predict_type(self, sensor_data):
+        # type: (np.ndarray) -> np.ndarray
         return self.network.predict_classes(sensor_data)
 
 

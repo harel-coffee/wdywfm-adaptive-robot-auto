@@ -9,7 +9,7 @@ import abm_gamemodel
 from analyser import SyntheticTypeAnalyser
 from controller import AutonomicManagerController
 from environment import NetlogoEvacuationEnvironment
-from synthetic_runner import MODEL_FILE, ENCODER_FILE
+from synthetic_runner import TYPE_ANALYSER_MODEL_FILE, ENCODER_FILE
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Running inference on CPU
 
@@ -48,7 +48,7 @@ def main():
     arguments = parser.parse_args()
     configuration = vars(arguments)  # type:Dict
 
-    type_analyser = SyntheticTypeAnalyser(model_file=PROJECT_DIRECTORY + MODEL_FILE)  # type: SyntheticTypeAnalyser
+    type_analyser = SyntheticTypeAnalyser(model_file=PROJECT_DIRECTORY + TYPE_ANALYSER_MODEL_FILE)  # type: SyntheticTypeAnalyser
     robot_controller = AutonomicManagerController(type_analyser,
                                                   abm_gamemodel.generate_game_model)
 

@@ -7,7 +7,8 @@ from typing import List, Tuple
 
 from abm_analysis import run_parallel_simulations, SET_STAFF_SUPPORT_COMMAND, SET_PASSENGER_SUPPORT_COMMAND, \
     SET_FALL_LENGTH_COMMAND
-from synthetic_runner import train_type_analyser
+from synthetic_runner import train_type_analyser, plot_reliability_diagram, TYPE_ANALYSER_MODEL_FILE, ENCODER_FILE, \
+    plot_training, encode_training_data
 
 MAX_EPOCHS = 500  # type: int
 EARLY_STOPPING_PATIENCE = int(MAX_EPOCHS * 0.15)  # type: int
@@ -60,20 +61,33 @@ def generate_training_data(simulation_runs=None, configuration_commands=None):
 
 def start_training(max_epochs, training_batch_size, learning_rate, units_per_layer,
                    early_stopping_patience):
-    # type: (int, int,float, List[int]) -> None
+    # type: (int, int,float, List[int], int) -> None
 
     target_accuracy = None
-    encode_categorical_data = True  # type: bool
 
-    sensor_data, person_type = get_netlogo_dataset()
-    sensor_data_train, sensor_data_test, person_type_train, person_type_test = train_test_split(sensor_data,
-                                                                                                person_type,
-                                                                                                test_size=0.33,
-                                                                                                random_state=0)
-    _ = train_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
-                            encode_categorical_data, units_per_layer, max_epochs,
-                            learning_rate=learning_rate,
-                            patience=early_stopping_patience)
+    sensor_data, person_type = get_netlogo_dataset()  # type: Tuple[np.ndarray, np.ndarray]
+    sensor_data_training, sensor_data_test, person_type_training, person_type_test = train_test_split(sensor_data,
+                                                                                                      person_type,
+                                                                                                      test_size=0.33,
+                                                                                                      random_state=0)
+    sensor_data_training = encode_training_data(sensor_data_training)  # type:np.ndarray
+
+    sensor_data_training, sensor_data_validation, person_type_training, person_type_validation = train_test_split(
+        sensor_data_training,
+        person_type_training,
+        stratify=person_type_training,
+        test_size=0.33)  # type: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+
+    training_history = train_type_analyser(sensor_data_training, person_type_training,
+                                           sensor_data_validation, person_type_validation,
+                                           training_batch_size, target_accuracy,
+                                           units_per_layer, max_epochs,
+                                           learning_rate=learning_rate,
+                                           patience=early_stopping_patience)
+
+    plot_training(training_history, metric="binary_crossentropy")
+    plot_training(training_history, metric="acc")
+    plot_reliability_diagram(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE)
 
 
 if __name__ == "__main__":

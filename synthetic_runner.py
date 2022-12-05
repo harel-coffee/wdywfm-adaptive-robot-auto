@@ -6,10 +6,11 @@ import numpy as np
 import tensorflow as tf
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping, History
 from matplotlib import pyplot as plt
+from sklearn.calibration import calibration_curve
 from sklearn.datasets import make_classification
+from sklearn.metrics import log_loss, accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.utils import shuffle
 from typing import Tuple, Optional, List
 
 from analyser import SyntheticTypeAnalyser, TYPE_TO_CLASS
@@ -23,7 +24,7 @@ tf.set_random_seed(SEED)
 NUM_SCENARIOS = 10  # type:int
 INTERACTIONS_PER_SCENARIO = 10  # type:int
 
-MODEL_FILE = "model/trained_model.h5"  # type:str
+TYPE_ANALYSER_MODEL_FILE = "model/trained_model.h5"  # type:str
 ENCODER_FILE = "model/encoder.pickle"  # type:str
 
 
@@ -125,13 +126,65 @@ def get_index_by_value(labels, label_value):
     return np.where(labels == label_value)[0]
 
 
-def train_type_analyser(sensor_data_train, person_type_train, batch_size, target_accuracy, encode_categorical_data,
+def plot_reliability_diagram(sensor_data, person_type, model_file):
+    # type: (np.ndarray, np.ndarray, str, str) -> None
+
+    logging.info("Reliability diagram for model {}.".format(model_file))
+
+    type_analyser = SyntheticTypeAnalyser(model_file=model_file)  # type: SyntheticTypeAnalyser
+
+    person_type_predictions = type_analyser.predict_type(sensor_data)  # type: np.ndarray
+    person_type_probabilities = type_analyser.obtain_probabilities(sensor_data)
+
+    accuracy = accuracy_score(person_type, person_type_predictions)
+    loss = log_loss(person_type, person_type_probabilities)
+    logging.info("Accuracy {}, log loss {}".format(accuracy, loss))
+
+    bin_true_probability, bin_predicted_probability = calibration_curve(person_type,
+                                                                        person_type_probabilities)  # type: Tuple[np.ndarray, np.ndarray]
+
+    plt.plot([0, 1], [0, 1], color="#FE4A49", linestyle=":", label="Perfectly calibrated model")
+    plt.plot(bin_predicted_probability, bin_true_probability, "s-", label=model_file, color="#162B37")
+    plt.ylabel("Fraction of positives", )
+    plt.xlabel("Mean predicted value")
+    plt.grid(True, color="#B2C7D9")
+
+    plt.savefig("img/calibration_curve_{}.png".format(datetime.datetime.now().strftime("run_%Y_%m_%d_%H_%M_%S")),
+                bbox_inches='tight', pad_inches=0)
+    plt.show()
+
+
+def balance_dataset(sensor_data, person_type):
+    # type: (np.ndarray, np.ndarray) -> Tuple[np.ndarray, np.ndarray]
+    zero_responder_index = get_index_by_value(person_type,
+                                              TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])  # type: np.ndarray
+    selfish_index = get_index_by_value(person_type, TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])  # type: np.ndarray
+
+    logging.info("Before undersampling -> Zero-responders: %d" % len(zero_responder_index))
+    logging.info("Before undersampling -> Selfish: %d" % len(selfish_index))
+
+    if len(zero_responder_index) != len(selfish_index):
+        logging.info("Imbalanced dataset. Undersampling...")
+        sensor_data, person_type = under_sample(first_index=zero_responder_index,
+                                                second_index=selfish_index,
+                                                original_features=sensor_data,
+                                                original_classes=person_type)
+        zero_responder_index = get_index_by_value(person_type,
+                                                  TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])  # type: np.ndarray
+        selfish_index = get_index_by_value(person_type, TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])  # type: np.ndarray
+
+        logging.info("After undersampling  -> Zero-responders: %d" % len(zero_responder_index))
+        logging.info("After undersampling  -> Selfish: %d" % len(selfish_index))
+
+    return sensor_data, person_type
+
+
+def train_type_analyser(sensor_data_train, person_type_train,
+                        sensor_data_validation, person_type_validation,
+                        batch_size, target_accuracy,
                         units_per_layer, epochs=100, metric="binary_crossentropy", learning_rate=0.001,
                         patience=0):
-    # type: (np.ndarray, np.ndarray, int, Optional[float], bool, List[int], int, str, float, int) -> SyntheticTypeAnalyser
-
-    if encode_categorical_data:
-        sensor_data_train = encode_training_data(sensor_data_train)
+    # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, Optional[float], List[int], int, str, float, int) -> History
 
     _, num_features = sensor_data_train.shape
     logging.info("Training data shape: : {}. Learning rate {}".format(sensor_data_train.shape, learning_rate))
@@ -141,25 +194,8 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
                                           learning_rate=learning_rate,
                                           units_per_layer=units_per_layer)  # type: SyntheticTypeAnalyser
 
-    zero_responder_index = get_index_by_value(person_type_train,
-                                              TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])  # type: np.ndarray
-    selfish_index = get_index_by_value(person_type_train, TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])  # type: np.ndarray
-
-    logging.info("Training data -> Zero-responders: %d" % len(zero_responder_index))
-    logging.info("Training data -> Selfish: %d" % len(selfish_index))
-
-    if len(zero_responder_index) != len(selfish_index):
-        logging.info("Imbalanced dataset. Undersampling...")
-        sensor_data_train, person_type_train = under_sample(first_index=zero_responder_index,
-                                                            second_index=selfish_index,
-                                                            original_features=sensor_data_train,
-                                                            original_classes=person_type_train)
-        zero_responder_index = get_index_by_value(person_type_train,
-                                                  TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])  # type: np.ndarray
-        selfish_index = get_index_by_value(person_type_train, TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE])  # type: np.ndarray
-
-        logging.info("Training data -> Zero-responders: %d" % len(zero_responder_index))
-        logging.info("Training data -> Selfish: %d" % len(selfish_index))
+    sensor_data_train, person_type_train = balance_dataset(sensor_data_train, person_type_train)
+    sensor_data_validation, person_type_validation = balance_dataset(sensor_data_validation, person_type_validation)
 
     early_stopping_monitor = 'val_binary_crossentropy'
     if target_accuracy is not None:
@@ -173,15 +209,17 @@ def train_type_analyser(sensor_data_train, person_type_train, batch_size, target
     # start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size=batch_size)
     callbacks = [early_stopping_callback,
                  tf.keras.callbacks.TensorBoard(log_dir=get_log_directory()),
-                 ModelCheckpoint(filepath=MODEL_FILE, monitor=early_stopping_monitor, save_best_only=True)]
+                 ModelCheckpoint(filepath=TYPE_ANALYSER_MODEL_FILE, monitor=early_stopping_monitor,
+                                 save_best_only=True)]
     training_history = type_analyser.train(sensor_data_train,
                                            person_type_train,
+                                           sensor_data_validation,
+                                           person_type_validation,
                                            epochs,
                                            batch_size,
                                            callbacks)
-    plot_training(training_history, metric)
 
-    return type_analyser
+    return training_history
 
 
 def start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size):
@@ -264,7 +302,7 @@ def main():
         type_analyser = train_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
                                             encode_categorical_data, max_epochs)
     else:
-        type_analyser = SyntheticTypeAnalyser(model_file=MODEL_FILE)
+        type_analyser = SyntheticTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
 
     robot_controller = AutonomicManagerController(type_analyser)
 
