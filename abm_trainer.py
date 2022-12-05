@@ -1,14 +1,14 @@
 import logging
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import train_test_split
 from typing import List, Tuple
 
 from abm_analysis import run_parallel_simulations, SET_STAFF_SUPPORT_COMMAND, SET_PASSENGER_SUPPORT_COMMAND, \
     SET_FALL_LENGTH_COMMAND
-from synthetic_runner import train_type_analyser, plot_reliability_diagram, TYPE_ANALYSER_MODEL_FILE, ENCODER_FILE, \
-    plot_training, encode_training_data
+from synthetic_runner import train_type_analyser, plot_reliability_diagram, TYPE_ANALYSER_MODEL_FILE, plot_training, \
+    encode_training_data, plot_confusion_matrix
 
 MAX_EPOCHS = 500  # type: int
 EARLY_STOPPING_PATIENCE = int(MAX_EPOCHS * 0.15)  # type: int
@@ -84,10 +84,11 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
                                            units_per_layer, max_epochs,
                                            learning_rate=learning_rate,
                                            patience=early_stopping_patience)
-
     plot_training(training_history, metric="binary_crossentropy")
     plot_training(training_history, metric="acc")
+
     plot_reliability_diagram(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE)
+    plot_confusion_matrix(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE)
 
 
 if __name__ == "__main__":

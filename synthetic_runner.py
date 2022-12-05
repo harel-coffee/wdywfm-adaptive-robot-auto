@@ -3,12 +3,13 @@ import logging
 import pickle
 
 import numpy as np
+import seaborn
 import tensorflow as tf
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping, History
 from matplotlib import pyplot as plt
 from sklearn.calibration import calibration_curve
 from sklearn.datasets import make_classification
-from sklearn.metrics import log_loss, accuracy_score
+from sklearn.metrics import log_loss, accuracy_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from typing import Tuple, Optional, List
@@ -127,7 +128,7 @@ def get_index_by_value(labels, label_value):
 
 
 def plot_reliability_diagram(sensor_data, person_type, model_file):
-    # type: (np.ndarray, np.ndarray, str, str) -> None
+    # type: (np.ndarray, np.ndarray, str) -> None
 
     logging.info("Reliability diagram for model {}.".format(model_file))
 
@@ -179,6 +180,23 @@ def balance_dataset(sensor_data, person_type):
     return sensor_data, person_type
 
 
+def plot_confusion_matrix(sensor_data, person_type, model_file):
+    # type: (np.ndarray, np.ndarray, str) -> None
+    logging.info("Confusion Matrix for model {}.".format(model_file))
+
+    type_analyser = SyntheticTypeAnalyser(model_file=model_file)  # type: SyntheticTypeAnalyser
+    person_type_predictions = type_analyser.predict_type(sensor_data)  # type: np.ndarray
+    matrix_data = confusion_matrix(person_type, person_type_predictions)  # type: np.ndarray
+
+    seaborn.heatmap(matrix_data, annot=True, fmt="d")
+    plt.title('Confusion matrix')
+    plt.ylabel('Actual label')
+    plt.xlabel('Predicted label')
+    plt.savefig("img/confusion_matrix_{}.png".format(datetime.datetime.now().strftime("run_%Y_%m_%d_%H_%M_%S")),
+                bbox_inches='tight', pad_inches=0)
+    plt.show()
+
+
 def train_type_analyser(sensor_data_train, person_type_train,
                         sensor_data_validation, person_type_validation,
                         batch_size, target_accuracy,
@@ -207,8 +225,11 @@ def train_type_analyser(sensor_data_train, person_type_train,
         early_stopping_callback = EarlyStopping(monitor=early_stopping_monitor, patience=patience)
 
     # start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size=batch_size)
+
+    log_directory = get_log_directory()  # type: str
+
     callbacks = [early_stopping_callback,
-                 tf.keras.callbacks.TensorBoard(log_dir=get_log_directory()),
+                 tf.keras.callbacks.TensorBoard(log_dir=log_directory),
                  ModelCheckpoint(filepath=TYPE_ANALYSER_MODEL_FILE, monitor=early_stopping_monitor,
                                  save_best_only=True)]
     training_history = type_analyser.train(sensor_data_train,
