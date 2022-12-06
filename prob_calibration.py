@@ -58,8 +58,10 @@ def get_expected_calibration_error(sensor_data, person_type, model_file=None, ty
     bin_true_probability, bin_predicted_probability = calibration_curve(person_type,
                                                                         person_type_probabilities)
 
-    return calculate_ece_from_calibration_curve(bin_true_probability, bin_predicted_probability,
-                                                person_type_probabilities)
+    result = calculate_ece_from_calibration_curve(bin_true_probability, bin_predicted_probability,
+                                                  person_type_probabilities)  # type: float
+    logging.info("Result: {}".format(result))
+    return result
 
 
 def calculate_ece_from_calibration_curve(bin_true_probability, bin_predicted_probability, person_type_probabilities):

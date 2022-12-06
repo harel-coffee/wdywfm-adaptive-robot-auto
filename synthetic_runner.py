@@ -16,7 +16,6 @@ from typing import Tuple, Optional, List
 from analyser import SyntheticTypeAnalyser, TYPE_TO_CLASS
 from controller import AutonomicManagerController
 from gamemodel import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
-from prob_calibration import get_expected_calibration_error
 
 SEED = 0  # type:int
 np.random.seed(SEED)
@@ -207,13 +206,6 @@ def train_type_analyser(sensor_data_train, person_type_train,
 
     callbacks = [early_stopping_callback,
                  tf.keras.callbacks.TensorBoard(log_dir=log_directory),
-                 tf.keras.callbacks.LambdaCallback(on_epoch_end=lambda epoch, logs: logs.update({
-                     "expected_calibration_error": get_expected_calibration_error(
-                         sensor_data_validation,
-                         person_type_validation,
-                         type_analyser=type_analyser
-                     )
-                 })),
                  ModelCheckpoint(filepath=TYPE_ANALYSER_MODEL_FILE, monitor=early_stopping_monitor,
                                  save_best_only=True)]
     training_history = type_analyser.train(sensor_data_train,
