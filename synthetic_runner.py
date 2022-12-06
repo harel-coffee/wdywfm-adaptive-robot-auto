@@ -7,9 +7,8 @@ import seaborn
 import tensorflow as tf
 from keras.callbacks import Callback, ModelCheckpoint, EarlyStopping, History
 from matplotlib import pyplot as plt
-from sklearn.calibration import calibration_curve
 from sklearn.datasets import make_classification
-from sklearn.metrics import log_loss, accuracy_score, confusion_matrix
+from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from typing import Tuple, Optional, List
@@ -17,6 +16,7 @@ from typing import Tuple, Optional, List
 from analyser import SyntheticTypeAnalyser, TYPE_TO_CLASS
 from controller import AutonomicManagerController
 from gamemodel import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
+from prob_calibration import get_expected_calibration_error
 
 SEED = 0  # type:int
 np.random.seed(SEED)
@@ -127,34 +127,6 @@ def get_index_by_value(labels, label_value):
     return np.where(labels == label_value)[0]
 
 
-def plot_reliability_diagram(sensor_data, person_type, model_file):
-    # type: (np.ndarray, np.ndarray, str) -> None
-
-    logging.info("Reliability diagram for model {}.".format(model_file))
-
-    type_analyser = SyntheticTypeAnalyser(model_file=model_file)  # type: SyntheticTypeAnalyser
-
-    person_type_predictions = type_analyser.predict_type(sensor_data)  # type: np.ndarray
-    person_type_probabilities = type_analyser.obtain_probabilities(sensor_data)
-
-    accuracy = accuracy_score(person_type, person_type_predictions)
-    loss = log_loss(person_type, person_type_probabilities)
-    logging.info("Accuracy {}, log loss {}".format(accuracy, loss))
-
-    bin_true_probability, bin_predicted_probability = calibration_curve(person_type,
-                                                                        person_type_probabilities)  # type: Tuple[np.ndarray, np.ndarray]
-
-    plt.plot([0, 1], [0, 1], color="#FE4A49", linestyle=":", label="Perfectly calibrated model")
-    plt.plot(bin_predicted_probability, bin_true_probability, "s-", label=model_file, color="#162B37")
-    plt.ylabel("Fraction of positives", )
-    plt.xlabel("Mean predicted value")
-    plt.grid(True, color="#B2C7D9")
-
-    plt.savefig("img/calibration_curve_{}.png".format(datetime.datetime.now().strftime("run_%Y_%m_%d_%H_%M_%S")),
-                bbox_inches='tight', pad_inches=0)
-    plt.show()
-
-
 def balance_dataset(sensor_data, person_type):
     # type: (np.ndarray, np.ndarray) -> Tuple[np.ndarray, np.ndarray]
     zero_responder_index = get_index_by_value(person_type,
@@ -189,10 +161,12 @@ def plot_confusion_matrix(sensor_data, person_type, model_file):
     matrix_data = confusion_matrix(person_type, person_type_predictions)  # type: np.ndarray
 
     seaborn.heatmap(matrix_data, annot=True, fmt="d")
-    plt.title('Confusion matrix')
+    suffix = datetime.datetime.now().strftime("run_%Y_%m_%d_%H_%M_%S")  # type: str
+
+    plt.title('Confusion matrix {}'.format(suffix))
     plt.ylabel('Actual label')
     plt.xlabel('Predicted label')
-    plt.savefig("img/confusion_matrix_{}.png".format(datetime.datetime.now().strftime("run_%Y_%m_%d_%H_%M_%S")),
+    plt.savefig("img/confusion_matrix_{}.png".format(suffix),
                 bbox_inches='tight', pad_inches=0)
     plt.show()
 
@@ -201,8 +175,8 @@ def train_type_analyser(sensor_data_train, person_type_train,
                         sensor_data_validation, person_type_validation,
                         batch_size, target_accuracy,
                         units_per_layer, epochs=100, metric="binary_crossentropy", learning_rate=0.001,
-                        patience=0):
-    # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, Optional[float], List[int], int, str, float, int) -> History
+                        patience=0, balance_data=True, calculate_weights=False):
+    # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, Optional[float], List[int], int, str, float, int, bool, bool) -> History
 
     _, num_features = sensor_data_train.shape
     logging.info("Training data shape: : {}. Learning rate {}".format(sensor_data_train.shape, learning_rate))
@@ -212,8 +186,11 @@ def train_type_analyser(sensor_data_train, person_type_train,
                                           learning_rate=learning_rate,
                                           units_per_layer=units_per_layer)  # type: SyntheticTypeAnalyser
 
-    sensor_data_train, person_type_train = balance_dataset(sensor_data_train, person_type_train)
-    sensor_data_validation, person_type_validation = balance_dataset(sensor_data_validation, person_type_validation)
+    if balance_data:
+        sensor_data_train, person_type_train = balance_dataset(sensor_data_train, person_type_train)
+        sensor_data_validation, person_type_validation = balance_dataset(sensor_data_validation, person_type_validation)
+    else:
+        logging.info("Training on an imbalanced dataset")
 
     early_stopping_monitor = 'val_binary_crossentropy'
     if target_accuracy is not None:
@@ -230,6 +207,13 @@ def train_type_analyser(sensor_data_train, person_type_train,
 
     callbacks = [early_stopping_callback,
                  tf.keras.callbacks.TensorBoard(log_dir=log_directory),
+                 tf.keras.callbacks.LambdaCallback(on_epoch_end=lambda epoch, logs: logs.update({
+                     "expected_calibration_error": get_expected_calibration_error(
+                         sensor_data_validation,
+                         person_type_validation,
+                         type_analyser=type_analyser
+                     )
+                 })),
                  ModelCheckpoint(filepath=TYPE_ANALYSER_MODEL_FILE, monitor=early_stopping_monitor,
                                  save_best_only=True)]
     training_history = type_analyser.train(sensor_data_train,
@@ -238,7 +222,8 @@ def train_type_analyser(sensor_data_train, person_type_train,
                                            person_type_validation,
                                            epochs,
                                            batch_size,
-                                           callbacks)
+                                           callbacks,
+                                           calculate_weights=calculate_weights)
 
     return training_history
 

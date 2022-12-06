@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.utils import resample
 from tensorflow.python.keras.models import load_model
-from typing import List, Tuple
+from typing import List, Optional, Dict
 
 from environment import GROUP_IDENTITY_CLASS
 from gamemodel import SHARED_IDENTITY_TYPE, PERSONAL_IDENTITY_TYPE
@@ -69,10 +69,13 @@ class SyntheticTypeAnalyser(object):
         return training_history
 
     def train(self, sensor_data_training, person_type_training, sensor_data_validation, person_type_validation,
-              epochs, batch_size, callbacks=None):
-        # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int, List) -> History
+              epochs, batch_size, callbacks=None, calculate_weights=False):
+        # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int, List, bool) -> History
 
-        logging.info(self.network.summary())
+        self.network.summary()
+        class_weights = None  # type: Optional[Dict]
+        if calculate_weights:
+            class_weights = self.obtain_weights(person_type_training)
 
         training_history = self.network.fit(sensor_data_training,
                                             person_type_training,
@@ -80,10 +83,27 @@ class SyntheticTypeAnalyser(object):
                                             verbose=1,
                                             callbacks=callbacks,
                                             batch_size=batch_size,
+                                            class_weight=class_weights,
                                             validation_data=(
                                                 sensor_data_validation, person_type_validation))  # type: History
 
         return training_history
+
+    @staticmethod
+    def obtain_weights(person_type_training):
+        # type: (np.ndarray) -> Dict
+        personal_type, group_type = np.bincount(person_type_training)
+        total_training = personal_type + group_type  # type: int
+        logging.info("Personal type: {} Group type: {}. Total: {}".format(personal_type, group_type, total_training))
+
+        personal_type_weight = (1.0 / personal_type) * (total_training / 2)  # type: float
+        group_type_weight = (1.0 / group_type) * (total_training / 2)  # type: float
+        logging.info("Personal weight: {} Group weight: {}".format(personal_type_weight, group_type_weight))
+
+        return {
+            TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE]: personal_type_weight,
+            TYPE_TO_CLASS[SHARED_IDENTITY_TYPE]: group_type_weight
+        }
 
     def obtain_probabilities(self, sensor_data):
         # type: (np.ndarray) -> np.ndarray

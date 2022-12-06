@@ -7,8 +7,9 @@ from typing import List, Tuple
 
 from abm_analysis import run_parallel_simulations, SET_STAFF_SUPPORT_COMMAND, SET_PASSENGER_SUPPORT_COMMAND, \
     SET_FALL_LENGTH_COMMAND
-from synthetic_runner import train_type_analyser, plot_reliability_diagram, TYPE_ANALYSER_MODEL_FILE, plot_training, \
-    encode_training_data, plot_confusion_matrix
+from prob_calibration import plot_reliability_diagram
+from synthetic_runner import TYPE_ANALYSER_MODEL_FILE, encode_training_data, plot_confusion_matrix, plot_training, \
+    train_type_analyser
 
 MAX_EPOCHS = 500  # type: int
 EARLY_STOPPING_PATIENCE = int(MAX_EPOCHS * 0.15)  # type: int
@@ -64,6 +65,8 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
     # type: (int, int,float, List[int], int) -> None
 
     target_accuracy = None
+    under_sample = False  # type: bool
+    calculate_weights = True  # type: bool
 
     sensor_data, person_type = get_netlogo_dataset()  # type: Tuple[np.ndarray, np.ndarray]
     sensor_data_training, sensor_data_test, person_type_training, person_type_test = train_test_split(sensor_data,
@@ -76,14 +79,16 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
         sensor_data_training,
         person_type_training,
         stratify=person_type_training,
-        test_size=0.33)  # type: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        test_size=0.33)
 
     training_history = train_type_analyser(sensor_data_training, person_type_training,
                                            sensor_data_validation, person_type_validation,
                                            training_batch_size, target_accuracy,
                                            units_per_layer, max_epochs,
                                            learning_rate=learning_rate,
-                                           patience=early_stopping_patience)
+                                           patience=early_stopping_patience,
+                                           balance_data=under_sample,
+                                           calculate_weights=calculate_weights)
     plot_training(training_history, metric="binary_crossentropy")
     plot_training(training_history, metric="acc")
 
