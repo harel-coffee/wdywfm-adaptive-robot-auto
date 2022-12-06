@@ -12,10 +12,10 @@ from synthetic_runner import TYPE_ANALYSER_MODEL_FILE, encode_training_data, plo
     train_type_analyser
 
 MAX_EPOCHS = 500  # type: int
-EARLY_STOPPING_PATIENCE = int(MAX_EPOCHS * 0.15)  # type: int
-TRAINING_BATCH_SIZE = 128  # type: int
-LEARNING_RATE = 0.0001  # type: float
-UNITS_PER_LAYER = [64, 64, 64]  # type: List[int]
+EARLY_STOPPING_PATIENCE = int(MAX_EPOCHS * 0.10)  # type: int
+TRAINING_BATCH_SIZE = 2048  # type: int
+LEARNING_RATE = 0.001  # type: float
+UNITS_PER_LAYER = [16, 16]  # type: List[int]
 
 TRAINING_DATA_DIRECTORY = "data/training"
 NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
@@ -81,7 +81,7 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
         stratify=person_type_training,
         test_size=0.33)
 
-    training_history = train_type_analyser(sensor_data_training, person_type_training,
+    _ = train_type_analyser(sensor_data_training, person_type_training,
                                            sensor_data_validation, person_type_validation,
                                            training_batch_size, target_accuracy,
                                            units_per_layer, max_epochs,
@@ -89,10 +89,9 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
                                            patience=early_stopping_patience,
                                            balance_data=under_sample,
                                            calculate_weights=calculate_weights)
-    plot_training(training_history, metric="binary_crossentropy")
-    plot_training(training_history, metric="acc")
 
-    plot_reliability_diagram(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE)
+    plot_reliability_diagram(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE,
+                             calibrate=True)
     plot_confusion_matrix(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE)
 
 

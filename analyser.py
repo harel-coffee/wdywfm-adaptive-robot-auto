@@ -96,8 +96,11 @@ class SyntheticTypeAnalyser(object):
         total_training = personal_type + group_type  # type: int
         logging.info("Personal type: {} Group type: {}. Total: {}".format(personal_type, group_type, total_training))
 
-        personal_type_weight = (1.0 / personal_type) * (total_training / 2)  # type: float
-        group_type_weight = (1.0 / group_type) * (total_training / 2)  # type: float
+        # personal_type_weight = (1.0 / personal_type) * (total_training / 2)  # type: float
+        # group_type_weight = (1.0 / group_type) * (total_training / 2)  # type: float
+
+        personal_type_weight = (1.0 / personal_type)  # type: float
+        group_type_weight = (1.0 / group_type)  # type: float
         logging.info("Personal weight: {} Group weight: {}".format(personal_type_weight, group_type_weight))
 
         return {
