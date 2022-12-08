@@ -1,15 +1,17 @@
 import logging
+import pickle
 
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from typing import List, Tuple
+from sklearn.preprocessing import OneHotEncoder
+from typing import List, Tuple, Optional
 
 from abm_analysis import run_parallel_simulations, SET_STAFF_SUPPORT_COMMAND, SET_PASSENGER_SUPPORT_COMMAND, \
     SET_FALL_LENGTH_COMMAND
 from analyser import SyntheticTypeAnalyser
-from prob_calibration import start_isotonic_regression
-from synthetic_runner import encode_training_data, train_type_analyser
+from prob_calibration import start_probability_calibration
+from synthetic_runner import encode_training_data, train_type_analyser, TYPE_ANALYSER_MODEL_FILE, ENCODER_FILE
 
 MAX_EPOCHS = 500  # type: int
 
@@ -17,7 +19,7 @@ EARLY_STOPPING_PATIENCE = int(MAX_EPOCHS * 0.10)  # type: int
 TRAINING_BATCH_SIZE = 2048  # type: int
 LEARNING_RATE = 0.001  # type: float
 # UNITS_PER_LAYER = [16, 16]  # type: List[int]
-UNITS_PER_LAYER = None
+UNITS_PER_LAYER = None  # For plain Logistic Regression
 
 TRAINING_DATA_DIRECTORY = "data/training"
 NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
@@ -64,12 +66,13 @@ def generate_training_data(simulation_runs=None, configuration_commands=None):
 
 def start_training(max_epochs, training_batch_size, learning_rate, units_per_layer,
                    early_stopping_patience):
-    # type: (int, int,float, List[int], int) -> None
+    # type: (int, int,float, Optional[List[int]], int) -> None
 
     target_accuracy = None
     under_sample = False  # type: bool
     calculate_weights = True  # type: bool
     number_of_bins = 10  # type: int
+    calibration_method = "sigmoid"  # type:str
 
     sensor_data, person_type = get_netlogo_dataset()  # type: Tuple[np.ndarray, np.ndarray]
     sensor_data_training, sensor_data_test, person_type_training, person_type_test = train_test_split(sensor_data,
@@ -86,16 +89,24 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
         test_size=0.33,
         random_state=0)
 
-    type_analyser = train_type_analyser(sensor_data_training, person_type_training,
-                                        sensor_data_validation, person_type_validation,
-                                        training_batch_size, target_accuracy,
-                                        units_per_layer, max_epochs,
-                                        learning_rate=learning_rate,
-                                        patience=early_stopping_patience,
-                                        balance_data=under_sample,
-                                        calculate_weights=calculate_weights)  # type: SyntheticTypeAnalyser
+    _ = train_type_analyser(sensor_data_training, person_type_training,
+                            sensor_data_validation, person_type_validation,
+                            training_batch_size, target_accuracy,
+                            units_per_layer, max_epochs,
+                            learning_rate=learning_rate,
+                            patience=early_stopping_patience,
+                            balance_data=under_sample,
+                            calculate_weights=calculate_weights)  # type: SyntheticTypeAnalyser
 
-    start_isotonic_regression(type_analyser, sensor_data_validation, person_type_validation, number_of_bins)
+    type_analyser = SyntheticTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
+
+    with open(ENCODER_FILE, "rb") as encoder_file:
+        encoder = pickle.load(encoder_file)  # type: OneHotEncoder
+        sensor_data_test = encoder.transform(sensor_data_test)
+        logging.info("Test dataset inputs encoded")
+
+    start_probability_calibration(type_analyser, sensor_data_validation, person_type_validation, sensor_data_test,
+                                  person_type_test, number_of_bins, calibration_method)
 
 
 if __name__ == "__main__":

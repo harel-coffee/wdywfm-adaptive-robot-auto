@@ -52,17 +52,20 @@ def start_calibration(sensor_data, person_type, model_file, calibrate=False, bin
 
     if calibrate:
         # start_isotonic_regression(bin_true_probability, bin_predicted_probability)
-        start_isotonic_regression(type_analyser, sensor_data, person_type, bins)
+        start_probability_calibration(type_analyser, sensor_data, person_type, bins)
 
         # start_plat_scalling(person_type, person_type_probabilities, bins)
 
 
-def start_isotonic_regression(type_analyser, sensor_data_validation, person_type_validation, bins, method="isotonic"):
-    # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, int, str) -> None
+def start_probability_calibration(type_analyser, sensor_data_validation, person_type_validation, sensor_data_test,
+                                  person_type_test, bins, method="isotonic"):
+    # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, str) -> None
 
     person_type_probabilities = type_analyser.obtain_probabilities(sensor_data_validation)  # type: np.ndarray
     plot_reliability_diagram(person_type_validation, person_type_probabilities, bins,
                              probability_label="after_training")
+
+    logging.info("Calibrating probabilities using: {} method".format(method))
 
     keras_classifier = type_analyser.keras_classifier
     calibrated_classifier = CalibratedClassifierCV(base_estimator=keras_classifier, cv="prefit",
@@ -70,56 +73,9 @@ def start_isotonic_regression(type_analyser, sensor_data_validation, person_type
     calibrated_classifier.fit(sensor_data_validation, person_type_validation)
 
     # We need to try this later over the test dataset
-    calibrated_probabilities = calibrated_classifier.predict_proba(sensor_data_validation)[:, 1]  # type: np.ndarray
-    plot_reliability_diagram(person_type_validation, calibrated_probabilities, bins,
+    calibrated_probabilities_test = calibrated_classifier.predict_proba(sensor_data_test)[:, 1]  # type: np.ndarray
+    plot_reliability_diagram(person_type_test, calibrated_probabilities_test, bins,
                              probability_label="after_calibration")
-
-
-def start_plat_scalling(person_type, person_type_probabilities, bins):
-    # type: (np.ndarray, np.ndarray, int) -> None
-
-    calibration_object = fit_platt_scaling_calibration(person_type, person_type_probabilities)  # type: Callable
-    calibrated_probabilities = calibration_object(person_type_probabilities)
-
-    new_true_probability, new_predicted_probability = calibration_curve(person_type,
-                                                                        calibrated_probabilities,
-                                                                        n_bins=bins)
-    logging.info("NEW: Expected Calibration Error: {}".format(
-        calculate_ece_from_calibration_curve(new_true_probability, new_predicted_probability,
-                                             person_type_probabilities)))
-    plt.plot(new_predicted_probability, new_true_probability, label="Plat scalling")
-
-
-def fit_platt_scaling_calibration(person_type, person_type_probabilities):
-    # type: (np.ndarray, np.ndarray) -> Callable
-    """
-    Code taken from: http://kdd2020.nplan.io/
-    """
-    person_type_logits = logit(person_type_probabilities)  # type: np.ndarray
-
-    def scalar_function(x, *args):
-        a, b = x
-        y_logit_scaled = a * person_type_logits + b
-        y_pred_inner = expit(y_logit_scaled)
-        bce = sum(
-            [-(y_t * np.log(y_p) + (1 - y_t) * np.log(1 - y_p)) for y_t, y_p in
-             zip(person_type, y_pred_inner)
-             if not y_p == 0])
-
-        return bce
-
-    optimisation_result = minimize(fun=scalar_function,
-                                   x0=[1, 0],
-                                   method="Nelder-Mead",
-                                   options={'xatol': 1e-8,
-                                            'disp': True})  # type: OptimizeResult
-
-    def calibrate(person_type_prob_input):
-        # type: (np.ndarray) -> np.ndarray
-        logits_from_input = logit(person_type_prob_input)  # type: np.ndarray
-        return expit(optimisation_result.x[0] * logits_from_input + optimisation_result.x[1])
-
-    return calibrate
 
 
 def get_expected_calibration_error(sensor_data, person_type, model_file=None, type_analyser=None):

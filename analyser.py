@@ -1,11 +1,7 @@
-import copy
-import io
 import logging
 import subprocess
 from subprocess import call
 
-import dill as pickle
-import h5py
 import keras
 import numpy as np
 import pandas as pd
@@ -32,51 +28,24 @@ TYPE_TO_CLASS = {
 }
 
 
-class PickleableKerasClassifier(KerasClassifier):
-    """
-    Taken from: https://github.com/keras-team/keras/issues/4274
-    """
-
-    def __getstate__(self):
-        state = self.__dict__
-        if "model" in state:
-            model = state["model"]
-            model_hdf5_bio = io.BytesIO()
-            with h5py.File(model_hdf5_bio, mode="w") as file:
-                model.save(file)
-            state["model"] = model_hdf5_bio
-            state_copy = copy.deepcopy(state)
-            state["model"] = model
-            return state_copy
-        else:
-            return state
-
-    def __setstate__(self, state):
-        if "model" in state:
-            model_hdf5_bio = state["model"]
-            with h5py.File(model_hdf5_bio, mode="r") as file:
-                state["model"] = keras.models.load_model(file)
-        self.__dict__ = state
-
-
 class SyntheticTypeAnalyser(object):
 
     def __init__(self, num_features=0, metric="", learning_rate=0.001, units_per_layer=None,
-                 model_file=None, pickle_file=None):
+                 model_file=None):
         self.units_per_layer = units_per_layer
         self.num_features = num_features
         self.learning_rate = learning_rate
         self.metric = metric
 
         if model_file is not None:
-            network = load_model(model_file)  # type: models.Sequential
-            logging.info("Model loaded from {}".format(model_file))
-        elif pickle_file is not None:
-            self.keras_classifier = pickle.load(open(pickle_file, "rb"))
-            logging.info("Keras Classifier loaded from {}".format(pickle_file))
+            network_from_file = load_model(model_file)  # type: models.Sequential
+            self.keras_classifier = KerasClassifier(build_fn=self.get_network)
+            self.keras_classifier.model = network_from_file
+            self.keras_classifier.classes_ = [False, True]
 
+            logging.info("Model loaded from {}".format(model_file))
         else:
-            self.keras_classifier = PickleableKerasClassifier(build_fn=self.get_network)
+            self.keras_classifier = KerasClassifier(build_fn=self.get_network)
 
     def get_network(self):
         if self.units_per_layer is None:
@@ -140,10 +109,6 @@ class SyntheticTypeAnalyser(object):
                                       sensor_data_validation, person_type_validation))
 
         return None
-
-    def save_keras_classifier(self, pickle_file):
-        # type: (str) -> None
-        pickle.dump(self.keras_classifier, open(pickle_file, "wb"))
 
     @staticmethod
     def obtain_weights(person_type_training):
