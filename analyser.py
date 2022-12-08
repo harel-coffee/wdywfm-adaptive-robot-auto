@@ -15,7 +15,7 @@ from keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
-from sklearn.utils import resample
+from sklearn.utils import resample, class_weight
 from tensorflow.python.keras.models import load_model
 from typing import List, Optional, Dict
 
@@ -113,18 +113,14 @@ class SyntheticTypeAnalyser(object):
     @staticmethod
     def obtain_weights(person_type_training):
         # type: (np.ndarray) -> Dict
-        personal_type, group_type = np.bincount(person_type_training)
-        total_training = personal_type + group_type  # type: int
-        logging.info("Personal type: {} Group type: {}. Total: {}".format(personal_type, group_type, total_training))
+        weights_per_class = class_weight.compute_class_weight("balanced", np.unique(person_type_training),
+                                                              person_type_training)  # type: Dict
 
-        personal_type_weight = (1.0 / personal_type)  # type: float
-        group_type_weight = (1.0 / group_type)  # type: float
-        logging.info("Personal weight: {} Group weight: {}".format(personal_type_weight, group_type_weight))
+        logging.info(
+            "Personal weight: {} Group weight: {}".format(weights_per_class[TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE]],
+                                                          weights_per_class[TYPE_TO_CLASS[SHARED_IDENTITY_TYPE]], ))
 
-        return {
-            TYPE_TO_CLASS[PERSONAL_IDENTITY_TYPE]: personal_type_weight,
-            TYPE_TO_CLASS[SHARED_IDENTITY_TYPE]: group_type_weight
-        }
+        return weights_per_class
 
     def obtain_probabilities(self, sensor_data):
         # type: (np.ndarray) -> np.ndarray

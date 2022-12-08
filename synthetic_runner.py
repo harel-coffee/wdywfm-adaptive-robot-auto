@@ -219,10 +219,6 @@ def train_type_analyser(sensor_data_train, person_type_train,
                         callbacks,
                         calculate_weights=calculate_weights)
 
-    # Buggy! Temporarily disabled
-    # type_analyser.save_keras_classifier(TYPE_ANALYSER_PICKLE_FILE)
-    # logging.info("Keras classifier saved at {}".format(TYPE_ANALYSER_PICKLE_FILE))
-
     return type_analyser
 
 
