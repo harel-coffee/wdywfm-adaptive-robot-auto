@@ -8,14 +8,14 @@ from typing import List, Tuple
 from abm_analysis import run_parallel_simulations, SET_STAFF_SUPPORT_COMMAND, SET_PASSENGER_SUPPORT_COMMAND, \
     SET_FALL_LENGTH_COMMAND
 from prob_calibration import plot_reliability_diagram
-from synthetic_runner import TYPE_ANALYSER_MODEL_FILE, encode_training_data, plot_confusion_matrix, plot_training, \
-    train_type_analyser
+from synthetic_runner import TYPE_ANALYSER_MODEL_FILE, encode_training_data, plot_confusion_matrix, train_type_analyser
 
 MAX_EPOCHS = 500  # type: int
 EARLY_STOPPING_PATIENCE = int(MAX_EPOCHS * 0.10)  # type: int
 TRAINING_BATCH_SIZE = 2048  # type: int
 LEARNING_RATE = 0.001  # type: float
-UNITS_PER_LAYER = [16, 16]  # type: List[int]
+# UNITS_PER_LAYER = [16, 16]  # type: List[int]
+UNITS_PER_LAYER = None
 
 TRAINING_DATA_DIRECTORY = "data/training"
 NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
@@ -67,6 +67,7 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
     target_accuracy = None
     under_sample = False  # type: bool
     calculate_weights = True  # type: bool
+    number_of_bins = 20  # type: int
 
     sensor_data, person_type = get_netlogo_dataset()  # type: Tuple[np.ndarray, np.ndarray]
     sensor_data_training, sensor_data_test, person_type_training, person_type_test = train_test_split(sensor_data,
@@ -82,16 +83,16 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
         test_size=0.33)
 
     _ = train_type_analyser(sensor_data_training, person_type_training,
-                                           sensor_data_validation, person_type_validation,
-                                           training_batch_size, target_accuracy,
-                                           units_per_layer, max_epochs,
-                                           learning_rate=learning_rate,
-                                           patience=early_stopping_patience,
-                                           balance_data=under_sample,
-                                           calculate_weights=calculate_weights)
+                            sensor_data_validation, person_type_validation,
+                            training_batch_size, target_accuracy,
+                            units_per_layer, max_epochs,
+                            learning_rate=learning_rate,
+                            patience=early_stopping_patience,
+                            balance_data=under_sample,
+                            calculate_weights=calculate_weights)
 
     plot_reliability_diagram(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE,
-                             calibrate=True)
+                             calibrate=True, bins=number_of_bins)
     plot_confusion_matrix(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE)
 
 

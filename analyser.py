@@ -35,19 +35,24 @@ class SyntheticTypeAnalyser(object):
             self.network = load_model(model_file)  # type: models.Sequential
             logging.info("Model loaded from {}".format(model_file))
         else:
-            self.network = models.Sequential()  # type: models.Sequential
 
             if units_per_layer is None:
-                units_per_layer = [num_features, int(num_features / 2)]  # type: List[int]
+                units_per_layer = []  # type: List[int]
 
-            self.network.add(layers.Dense(units=units_per_layer[0], activation="relu", input_shape=(num_features,)))
-            self.network.add(Dropout(rate=0.4))
+            if len(units_per_layer) > 0:
+                self.network = models.Sequential()  # type: models.Sequential
 
-            for units in units_per_layer[1:]:
-                self.network.add(layers.Dense(units=units, activation="relu"))
+                self.network.add(layers.Dense(units=units_per_layer[0], activation="relu", input_shape=(num_features,)))
                 self.network.add(Dropout(rate=0.4))
 
-            self.network.add(layers.Dense(units=1, activation="sigmoid"))
+                for units in units_per_layer[1:]:
+                    self.network.add(layers.Dense(units=units, activation="relu"))
+                    self.network.add(Dropout(rate=0.4))
+
+                self.network.add(layers.Dense(units=1, activation="sigmoid"))
+            else:
+                self.network = models.Sequential(
+                    [layers.Dense(units=1, activation="sigmoid", input_shape=(num_features,))])
 
             optimizer = keras.optimizers.Adam(lr=learning_rate)  # type: Optimizer
             self.network.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=[metric, "accuracy"])
