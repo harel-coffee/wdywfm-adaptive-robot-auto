@@ -23,10 +23,10 @@ def plot_reliability_diagram(sensor_data, person_type, model_file, calibrate=Fal
 
     person_type_predictions = type_analyser.predict_type(sensor_data)  # type: np.ndarray
     person_type_probabilities = type_analyser.obtain_probabilities(sensor_data)
-    prediction_series = pd.Series(person_type_probabilities.flatten())  # type: pd.Series
-    logging.info(prediction_series.describe())
-    prediction_series.plot.hist(bins=bins)
-    plt.show()
+
+    plt.hist(person_type_probabilities,
+             weights=np.ones_like(person_type_probabilities) / len(person_type_probabilities),
+             alpha=.4, bins=np.maximum(10, bins))
 
     accuracy = accuracy_score(person_type, person_type_predictions)
     loss = log_loss(person_type, person_type_probabilities)
