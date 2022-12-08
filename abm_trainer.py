@@ -7,10 +7,12 @@ from typing import List, Tuple
 
 from abm_analysis import run_parallel_simulations, SET_STAFF_SUPPORT_COMMAND, SET_PASSENGER_SUPPORT_COMMAND, \
     SET_FALL_LENGTH_COMMAND
-from prob_calibration import plot_reliability_diagram
-from synthetic_runner import TYPE_ANALYSER_MODEL_FILE, encode_training_data, plot_confusion_matrix, train_type_analyser
+from analyser import SyntheticTypeAnalyser
+from prob_calibration import start_isotonic_regression
+from synthetic_runner import encode_training_data, train_type_analyser
 
 MAX_EPOCHS = 500  # type: int
+
 EARLY_STOPPING_PATIENCE = int(MAX_EPOCHS * 0.10)  # type: int
 TRAINING_BATCH_SIZE = 2048  # type: int
 LEARNING_RATE = 0.001  # type: float
@@ -67,12 +69,13 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
     target_accuracy = None
     under_sample = False  # type: bool
     calculate_weights = True  # type: bool
-    number_of_bins = 20  # type: int
+    number_of_bins = 10  # type: int
 
     sensor_data, person_type = get_netlogo_dataset()  # type: Tuple[np.ndarray, np.ndarray]
     sensor_data_training, sensor_data_test, person_type_training, person_type_test = train_test_split(sensor_data,
                                                                                                       person_type,
                                                                                                       test_size=0.33,
+                                                                                                      stratify=person_type,
                                                                                                       random_state=0)
     sensor_data_training = encode_training_data(sensor_data_training)  # type:np.ndarray
 
@@ -80,20 +83,19 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
         sensor_data_training,
         person_type_training,
         stratify=person_type_training,
-        test_size=0.33)
+        test_size=0.33,
+        random_state=0)
 
-    _ = train_type_analyser(sensor_data_training, person_type_training,
-                            sensor_data_validation, person_type_validation,
-                            training_batch_size, target_accuracy,
-                            units_per_layer, max_epochs,
-                            learning_rate=learning_rate,
-                            patience=early_stopping_patience,
-                            balance_data=under_sample,
-                            calculate_weights=calculate_weights)
+    type_analyser = train_type_analyser(sensor_data_training, person_type_training,
+                                        sensor_data_validation, person_type_validation,
+                                        training_batch_size, target_accuracy,
+                                        units_per_layer, max_epochs,
+                                        learning_rate=learning_rate,
+                                        patience=early_stopping_patience,
+                                        balance_data=under_sample,
+                                        calculate_weights=calculate_weights)  # type: SyntheticTypeAnalyser
 
-    plot_reliability_diagram(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE,
-                             calibrate=True, bins=number_of_bins)
-    plot_confusion_matrix(sensor_data_validation, person_type_validation, TYPE_ANALYSER_MODEL_FILE)
+    start_isotonic_regression(type_analyser, sensor_data_validation, person_type_validation, number_of_bins)
 
 
 if __name__ == "__main__":

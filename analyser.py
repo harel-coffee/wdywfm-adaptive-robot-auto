@@ -1,7 +1,11 @@
+import copy
+import io
 import logging
 import subprocess
 from subprocess import call
 
+import dill as pickle
+import h5py
 import keras
 import numpy as np
 import pandas as pd
@@ -11,6 +15,7 @@ from keras import models
 from keras.callbacks import History
 from keras.layers import Dropout
 from keras.optimizers import Optimizer
+from keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
@@ -27,43 +32,86 @@ TYPE_TO_CLASS = {
 }
 
 
+class PickleableKerasClassifier(KerasClassifier):
+    """
+    Taken from: https://github.com/keras-team/keras/issues/4274
+    """
+
+    def __getstate__(self):
+        state = self.__dict__
+        if "model" in state:
+            model = state["model"]
+            model_hdf5_bio = io.BytesIO()
+            with h5py.File(model_hdf5_bio, mode="w") as file:
+                model.save(file)
+            state["model"] = model_hdf5_bio
+            state_copy = copy.deepcopy(state)
+            state["model"] = model
+            return state_copy
+        else:
+            return state
+
+    def __setstate__(self, state):
+        if "model" in state:
+            model_hdf5_bio = state["model"]
+            with h5py.File(model_hdf5_bio, mode="r") as file:
+                state["model"] = keras.models.load_model(file)
+        self.__dict__ = state
+
+
 class SyntheticTypeAnalyser(object):
 
-    def __init__(self, num_features=0, metric="", learning_rate=0.001, units_per_layer=None, model_file=None):
+    def __init__(self, num_features=0, metric="", learning_rate=0.001, units_per_layer=None,
+                 model_file=None, pickle_file=None):
+        self.units_per_layer = units_per_layer
+        self.num_features = num_features
+        self.learning_rate = learning_rate
+        self.metric = metric
 
         if model_file is not None:
-            self.network = load_model(model_file)  # type: models.Sequential
+            network = load_model(model_file)  # type: models.Sequential
             logging.info("Model loaded from {}".format(model_file))
+        elif pickle_file is not None:
+            self.keras_classifier = pickle.load(open(pickle_file, "rb"))
+            logging.info("Keras Classifier loaded from {}".format(pickle_file))
+
         else:
+            self.keras_classifier = PickleableKerasClassifier(build_fn=self.get_network)
 
-            if units_per_layer is None:
-                units_per_layer = []  # type: List[int]
+    def get_network(self):
+        if self.units_per_layer is None:
+            self.units_per_layer = []  # type: List[int]
 
-            if len(units_per_layer) > 0:
-                self.network = models.Sequential()  # type: models.Sequential
+        if len(self.units_per_layer) > 0:
+            network = models.Sequential()  # type: models.Sequential
 
-                self.network.add(layers.Dense(units=units_per_layer[0], activation="relu", input_shape=(num_features,)))
-                self.network.add(Dropout(rate=0.4))
+            network.add(
+                layers.Dense(units=self.units_per_layer[0], activation="relu", input_shape=(self.num_features,)))
+            network.add(Dropout(rate=0.4))
 
-                for units in units_per_layer[1:]:
-                    self.network.add(layers.Dense(units=units, activation="relu"))
-                    self.network.add(Dropout(rate=0.4))
+            for units in self.units_per_layer[1:]:
+                network.add(layers.Dense(units=units, activation="relu"))
+                network.add(Dropout(rate=0.4))
 
-                self.network.add(layers.Dense(units=1, activation="sigmoid"))
-            else:
-                self.network = models.Sequential(
-                    [layers.Dense(units=1, activation="sigmoid", input_shape=(num_features,))])
+            network.add(layers.Dense(units=1, activation="sigmoid"))
+        else:
+            network = models.Sequential(
+                [layers.Dense(units=1, activation="sigmoid", input_shape=(self.num_features,))])
 
-            optimizer = keras.optimizers.Adam(lr=learning_rate)  # type: Optimizer
-            self.network.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=[metric, "accuracy"])
+        optimizer = keras.optimizers.Adam(lr=self.learning_rate)  # type: Optimizer
+        network.compile(loss="binary_crossentropy", optimizer=optimizer, metrics=[self.metric, "accuracy"])
+
+        network.summary()
+
+        return network
 
     def do_sanity_check(self, sensor_data, person_type, epochs, batch_size):
         # type: (np.ndarray, np.ndarray, int, int) -> History
 
-        training_history = self.network.fit(sensor_data,
-                                            person_type,
-                                            epochs=epochs,
-                                            batch_size=batch_size)  # type: History
+        training_history = self.keras_classifier.fit(sensor_data,
+                                                     person_type,
+                                                     epochs=epochs,
+                                                     batch_size=batch_size)  # type: History
         last_recorded_accuracy = training_history.history["acc"][-1]  # type: float
         logging.info(
             "last_recorded_accuracy: {}. Training samples: {}".format(last_recorded_accuracy, sensor_data.shape[0]))
@@ -75,24 +123,27 @@ class SyntheticTypeAnalyser(object):
 
     def train(self, sensor_data_training, person_type_training, sensor_data_validation, person_type_validation,
               epochs, batch_size, callbacks=None, calculate_weights=False):
-        # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int, List, bool) -> History
+        # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int, List, bool) -> None
 
-        self.network.summary()
         class_weights = None  # type: Optional[Dict]
         if calculate_weights:
             class_weights = self.obtain_weights(person_type_training)
 
-        training_history = self.network.fit(sensor_data_training,
-                                            person_type_training,
-                                            epochs=epochs,
-                                            verbose=1,
-                                            callbacks=callbacks,
-                                            batch_size=batch_size,
-                                            class_weight=class_weights,
-                                            validation_data=(
-                                                sensor_data_validation, person_type_validation))  # type: History
+        self.keras_classifier.fit(sensor_data_training,
+                                  person_type_training,
+                                  epochs=epochs,
+                                  verbose=1,
+                                  callbacks=callbacks,
+                                  batch_size=batch_size,
+                                  class_weight=class_weights,
+                                  validation_data=(
+                                      sensor_data_validation, person_type_validation))
 
-        return training_history
+        return None
+
+    def save_keras_classifier(self, pickle_file):
+        # type: (str) -> None
+        pickle.dump(self.keras_classifier, open(pickle_file, "wb"))
 
     @staticmethod
     def obtain_weights(person_type_training):
@@ -100,9 +151,6 @@ class SyntheticTypeAnalyser(object):
         personal_type, group_type = np.bincount(person_type_training)
         total_training = personal_type + group_type  # type: int
         logging.info("Personal type: {} Group type: {}. Total: {}".format(personal_type, group_type, total_training))
-
-        # personal_type_weight = (1.0 / personal_type) * (total_training / 2)  # type: float
-        # group_type_weight = (1.0 / group_type) * (total_training / 2)  # type: float
 
         personal_type_weight = (1.0 / personal_type)  # type: float
         group_type_weight = (1.0 / group_type)  # type: float
@@ -115,11 +163,11 @@ class SyntheticTypeAnalyser(object):
 
     def obtain_probabilities(self, sensor_data):
         # type: (np.ndarray) -> np.ndarray
-        return self.network.predict(sensor_data)
+        return self.keras_classifier.predict_proba(sensor_data)[:, 1]
 
     def predict_type(self, sensor_data):
         # type: (np.ndarray) -> np.ndarray
-        return self.network.predict_classes(sensor_data)
+        return self.keras_classifier.predict(sensor_data)
 
 
 class NaiveBayesTypeAnalyser(object):

@@ -25,6 +25,8 @@ NUM_SCENARIOS = 10  # type:int
 INTERACTIONS_PER_SCENARIO = 10  # type:int
 
 TYPE_ANALYSER_MODEL_FILE = "model/trained_model.h5"  # type:str
+TYPE_ANALYSER_PICKLE_FILE = "model/trained_model.joblib"  # type:str
+
 ENCODER_FILE = "model/encoder.pickle"  # type:str
 
 
@@ -175,7 +177,7 @@ def train_type_analyser(sensor_data_train, person_type_train,
                         batch_size, target_accuracy,
                         units_per_layer, epochs=100, metric="binary_crossentropy", learning_rate=0.001,
                         patience=0, balance_data=True, calculate_weights=False):
-    # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, Optional[float], List[int], int, str, float, int, bool, bool) -> History
+    # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, Optional[float], List[int], int, str, float, int, bool, bool) -> SyntheticTypeAnalyser
 
     _, num_features = sensor_data_train.shape
     logging.info("Training data shape: : {}. Learning rate {}".format(sensor_data_train.shape, learning_rate))
@@ -208,16 +210,20 @@ def train_type_analyser(sensor_data_train, person_type_train,
                  tf.keras.callbacks.TensorBoard(log_dir=log_directory),
                  ModelCheckpoint(filepath=TYPE_ANALYSER_MODEL_FILE, monitor=early_stopping_monitor,
                                  save_best_only=True)]
-    training_history = type_analyser.train(sensor_data_train,
-                                           person_type_train,
-                                           sensor_data_validation,
-                                           person_type_validation,
-                                           epochs,
-                                           batch_size,
-                                           callbacks,
-                                           calculate_weights=calculate_weights)
+    type_analyser.train(sensor_data_train,
+                        person_type_train,
+                        sensor_data_validation,
+                        person_type_validation,
+                        epochs,
+                        batch_size,
+                        callbacks,
+                        calculate_weights=calculate_weights)
 
-    return training_history
+    # Buggy! Temporarily disabled
+    # type_analyser.save_keras_classifier(TYPE_ANALYSER_PICKLE_FILE)
+    # logging.info("Keras classifier saved at {}".format(TYPE_ANALYSER_PICKLE_FILE))
+
+    return type_analyser
 
 
 def start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size):

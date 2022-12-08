@@ -2,53 +2,34 @@ import datetime
 import logging
 
 import numpy as np
-import pandas as pd
 from matplotlib import pyplot as plt
 from scipy.optimize import minimize, OptimizeResult
 from scipy.special import logit, expit
-from sklearn.calibration import calibration_curve
-from sklearn.isotonic import IsotonicRegression
-from sklearn.metrics import accuracy_score, log_loss
+from sklearn.calibration import calibration_curve, CalibratedClassifierCV
+from sklearn.metrics import brier_score_loss
 from typing import Optional, Callable
 
 from analyser import SyntheticTypeAnalyser
 
 
-def plot_reliability_diagram(sensor_data, person_type, model_file, calibrate=False, bins=5):
-    # type: (np.ndarray, np.ndarray, str, bool, int) -> None
+def plot_reliability_diagram(person_type, person_type_probabilities, bins, probability_label):
+    bin_true_probability, bin_predicted_probability = calibration_curve(person_type,
+                                                                        person_type_probabilities,
+                                                                        n_bins=bins)
 
-    logging.info("Reliability diagram for model {}.".format(model_file))
-
-    type_analyser = SyntheticTypeAnalyser(model_file=model_file)  # type: SyntheticTypeAnalyser
-
-    person_type_predictions = type_analyser.predict_type(sensor_data)  # type: np.ndarray
-    person_type_probabilities = type_analyser.obtain_probabilities(sensor_data)
+    calibration_error = calculate_ece_from_calibration_curve(bin_true_probability, bin_predicted_probability,
+                                                             person_type_probabilities)  # type: float
+    brier_score = brier_score_loss(bin_true_probability, bin_predicted_probability)  # type: float
+    logging.info("Expected Calibration Error: {}. Brier score: {}".format(calibration_error, brier_score))
 
     plt.hist(person_type_probabilities,
              weights=np.ones_like(person_type_probabilities) / len(person_type_probabilities),
              alpha=.4, bins=np.maximum(10, bins))
-
-    accuracy = accuracy_score(person_type, person_type_predictions)
-    loss = log_loss(person_type, person_type_probabilities)
-    logging.info("Accuracy {}, log loss {}".format(accuracy, loss))
-
-    bin_true_probability, bin_predicted_probability = calibration_curve(person_type,
-                                                                        person_type_probabilities,
-                                                                        n_bins=bins)
-    logging.info("Expected Calibration Error: {}".format(
-        calculate_ece_from_calibration_curve(bin_true_probability, bin_predicted_probability,
-                                             person_type_probabilities)))
-
     plt.plot([0, 1], [0, 1], color="#FE4A49", linestyle=":", label="Perfectly calibrated model")
-    plt.plot(bin_predicted_probability, bin_true_probability, "s-", label=model_file, color="#162B37")
-
-    if calibrate:
-        start_isotonic_regression(bin_true_probability, bin_predicted_probability)
-
-        # start_plat_scalling(person_type, person_type_probabilities, bins)
+    plt.plot(bin_predicted_probability, bin_true_probability, "s-", label=probability_label, color="#162B37")
 
     suffix = datetime.datetime.now().strftime("run_%Y_%m_%d_%H_%M_%S")  # type: str
-    plt.title("Reliability diagram: {}".format(suffix))
+    plt.title("RD: {} (ECE {:.2f}, BS {:.2f})".format(suffix, calibration_error, brier_score))
     plt.ylabel("Fraction of positives", )
     plt.xlabel("Mean predicted value")
     plt.legend()
@@ -58,14 +39,40 @@ def plot_reliability_diagram(sensor_data, person_type, model_file, calibrate=Fal
     plt.show()
 
 
-def start_isotonic_regression(bin_true_probability, bin_predicted_probability):
-    # type: (np.ndarray, np.ndarray) -> None
+def start_calibration(sensor_data, person_type, model_file, calibrate=False, bins=5):
+    # type: (np.ndarray, np.ndarray, str, bool, int) -> None
 
-    calibration_object = fit_isotonic_regression(bin_true_probability,
-                                                 bin_predicted_probability)  # type: IsotonicRegression
-    x_values = np.linspace(0, 1, 100)  # type: np.ndarray
-    calibrated_probabilities = calibration_object.predict(x_values)
-    plt.plot(x_values, calibrated_probabilities, label="Isotonic Function")
+    logging.info("Reliability diagram for model {}.".format(model_file))
+
+    type_analyser = SyntheticTypeAnalyser(model_file=model_file)  # type: SyntheticTypeAnalyser
+
+    person_type_probabilities = type_analyser.obtain_probabilities(sensor_data)  # type: np.ndarray
+
+    plot_reliability_diagram(person_type, person_type_probabilities, bins, probability_label=model_file)
+
+    if calibrate:
+        # start_isotonic_regression(bin_true_probability, bin_predicted_probability)
+        start_isotonic_regression(type_analyser, sensor_data, person_type, bins)
+
+        # start_plat_scalling(person_type, person_type_probabilities, bins)
+
+
+def start_isotonic_regression(type_analyser, sensor_data_validation, person_type_validation, bins, method="isotonic"):
+    # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, int, str) -> None
+
+    person_type_probabilities = type_analyser.obtain_probabilities(sensor_data_validation)  # type: np.ndarray
+    plot_reliability_diagram(person_type_validation, person_type_probabilities, bins,
+                             probability_label="after_training")
+
+    keras_classifier = type_analyser.keras_classifier
+    calibrated_classifier = CalibratedClassifierCV(base_estimator=keras_classifier, cv="prefit",
+                                                   method=method)  # type: CalibratedClassifierCV
+    calibrated_classifier.fit(sensor_data_validation, person_type_validation)
+
+    # We need to try this later over the test dataset
+    calibrated_probabilities = calibrated_classifier.predict_proba(sensor_data_validation)[:, 1]  # type: np.ndarray
+    plot_reliability_diagram(person_type_validation, calibrated_probabilities, bins,
+                             probability_label="after_calibration")
 
 
 def start_plat_scalling(person_type, person_type_probabilities, bins):
@@ -151,13 +158,3 @@ def calculate_ece_from_calibration_curve(bin_true_probability, bin_predicted_pro
         result += current_bin_size / total_samples * np.abs(true_probability - predicted_probability)
 
     return result
-
-
-def fit_isotonic_regression(bin_true_probability, bin_predicted_probability):
-    # type: (np.ndarray, np.ndarray) -> IsotonicRegression
-
-    logging.info("Calibrating probabilities with Isotonic Regression")
-
-    isotonic_regression = IsotonicRegression().fit(bin_predicted_probability,
-                                                   bin_true_probability)  # type: IsotonicRegression
-    return isotonic_regression
