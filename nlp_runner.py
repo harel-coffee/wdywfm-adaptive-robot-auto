@@ -1,4 +1,8 @@
-SEED = 42
+from typing import Tuple, Optional
+
+import gamemodel
+from synthetic_runner import run_scenario, SEED
+
 import numpy as np
 
 np.random.seed(SEED)
@@ -17,7 +21,6 @@ from sklearn.model_selection import train_test_split
 from analyser import NaiveBayesTypeAnalyser, TunedTransformerTypeAnalyser
 from controller import AutonomicManagerController, ProSocialRobotController, ProSelfRobotController
 from environment import PERSONAL_IDENTITY_CLASS, GROUP_IDENTITY_CLASS, CLASS_TO_TYPE, EmergencyEvacuationEnvironment
-from synthetic_runner import run_scenario
 
 TEXT_CONTENT_COLUMN = "text"
 TEXT_LABEL_COLUMN = "label"
@@ -34,7 +37,7 @@ def plot_word_counts(dataframe):
 
 
 def get_dataset():
-    dataframe = pd.read_csv("data/emergency_interactions.csv")
+    dataframe = pd.read_csv("data_bk/emergency_interactions.csv")
     logging.info("Before label consolidation")
     logging.info(dataframe[TEXT_LABEL_COLUMN].value_counts())
 
@@ -45,15 +48,22 @@ def get_dataset():
     return dataframe
 
 
-def configure_tuned_transformer(dataframe, test_size, column_for_stratify, random_seed, train=True):
-    type_analyser = TunedTransformerTypeAnalyser()
+def configure_tuned_transformer(testing_csv_file, prefix, text_label_column, dataframe=None, test_size=None,
+                                column_for_stratify=None,
+                                random_seed=None,
+                                train=True):
+    # type: (str, str, str, Optional[pd.DataFrame], Optional[float], Optional[str], Optional[float], bool) -> Tuple[TunedTransformerTypeAnalyser, np.ndarray, np.ndarray]
+    type_analyser = TunedTransformerTypeAnalyser(testing_csv_file=testing_csv_file, prefix=prefix)
 
     if train:
         type_analyser.train(dataframe, test_size, column_for_stratify, random_seed)
 
-    testing_dataframe = pd.read_csv(type_analyser.testing_csv_file)
-    text_test_features = type_analyser.convert_text_to_features(testing_dataframe[TEXT_CONTENT_COLUMN])
-    label_test_array = testing_dataframe[TEXT_LABEL_COLUMN].to_numpy()
+    testing_dataframe = pd.read_csv(type_analyser.testing_csv_file)  # type: pd.DataFrame
+    logging.info("Testing data loaded from {}".format(type_analyser.testing_csv_file))
+
+    text_test_features = type_analyser.convert_text_to_features(
+        testing_dataframe[TEXT_CONTENT_COLUMN])  # type: np.ndarray
+    label_test_array = testing_dataframe[text_label_column].to_numpy()  # type: np.ndarray
 
     return type_analyser, text_test_features, label_test_array
 
@@ -84,16 +94,20 @@ def configure_naive_bayes(dataframe, test_size):
 
 def main():
     test_size = 0.5
-    dataframe = get_dataset()
+    # dataframe = get_dataset()
 
-    type_analyser, text_test_features, label_test_array = configure_naive_bayes(dataframe, test_size)
-    # type_analyser, text_test_features, label_test_array = configure_tuned_transformer(dataframe, test_size,
-    #                                                                                   TEXT_LABEL_COLUMN, SEED,
-    #                                                                                   train=True)
+    # type_analyser, text_test_features, label_test_array = configure_naive_bayes(dataframe, test_size)
+    testing_csv_file = '../transformer-type-estimator/data/testing_data.csv'  # type: str
+    prefix = 'conda run -n wdywfm-adaptive-robot-p36 '  # type:str
+    text_label_column = "will_help"  # type:str
+    type_analyser, text_test_features, label_test_array = configure_tuned_transformer(testing_csv_file=testing_csv_file,
+                                                                                      text_label_column=text_label_column,
+                                                                                      prefix=prefix,
+                                                                                      train=False)
 
-    # robot_controller = AutonomicManagerController(type_analyser)
+    robot_controller = AutonomicManagerController(type_analyser, model_generator=gamemodel.generate_game_model)
     # robot_controller = ProSocialRobotController()
-    robot_controller = ProSelfRobotController()
+    # robot_controller = ProSelfRobotController()
 
     emergency_environment = EmergencyEvacuationEnvironment(text_test_features, label_test_array,
                                                            len(label_test_array))
@@ -101,6 +115,5 @@ def main():
 
 
 if __name__ == "__main__":
-    np.random.seed(SEED)
     logging.basicConfig(level=logging.INFO)
     main()

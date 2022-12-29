@@ -170,13 +170,14 @@ class NaiveBayesTypeAnalyser(object):
 
 class TunedTransformerTypeAnalyser(object):
 
-    def __init__(self):
+    def __init__(self, testing_csv_file="testing_data.csv", prefix='conda run -n wdywfm-adaptive-robot-p36 '):
+        # type: (str, str) ->  None
         self.training_csv_file = "training_data.csv"
-        self.testing_csv_file = "testing_data.csv"
+        self.testing_csv_file = testing_csv_file
         self.validation_csv_file = "validation_data.csv"
         self.validation_size = 0.4
 
-        self.prefix = 'conda run -n wdywfm-adaptive-robot-p36 '
+        self.prefix = prefix
         self.python_script = '../transformer-type-estimator/transformer_analyser.py'
         self.training_command = self.prefix + 'python {} --trainlocal --train_csv "{}" --test_csv "{}"'
         self.prediction_command = self.prefix + 'python {} --predlocal --input_text "{}"'
@@ -223,6 +224,7 @@ class TunedTransformerTypeAnalyser(object):
 
     @staticmethod
     def convert_text_to_features(text_series):
+        # type: (pd.Series) -> np.ndarray
         return np.expand_dims(text_series.to_numpy(), axis=1)
 
     @staticmethod

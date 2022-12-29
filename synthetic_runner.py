@@ -19,7 +19,7 @@ from gamemodel import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 
 SEED = 0  # type:int
 np.random.seed(SEED)
-tf.set_random_seed(SEED)
+tf.compat.v1.set_random_seed(SEED)
 
 NUM_SCENARIOS = 10  # type:int
 INTERACTIONS_PER_SCENARIO = 10  # type:int

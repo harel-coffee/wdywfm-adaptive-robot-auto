@@ -3,11 +3,9 @@ import logging
 
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.optimize import minimize, OptimizeResult
-from scipy.special import logit, expit
 from sklearn.calibration import calibration_curve, CalibratedClassifierCV
 from sklearn.metrics import brier_score_loss
-from typing import Optional, Callable
+from typing import Optional
 
 from analyser import SyntheticTypeAnalyser
 
