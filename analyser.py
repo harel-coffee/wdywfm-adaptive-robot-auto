@@ -170,17 +170,19 @@ class NaiveBayesTypeAnalyser(object):
 
 class TunedTransformerTypeAnalyser(object):
 
-    def __init__(self, testing_csv_file="testing_data.csv", prefix='conda run -n wdywfm-adaptive-robot-p36 '):
-        # type: (str, str) ->  None
-        self.training_csv_file = "training_data.csv"
-        self.testing_csv_file = testing_csv_file
-        self.validation_csv_file = "validation_data.csv"
-        self.validation_size = 0.4
+    def __init__(self, testing_csv_file="testing_data.csv", prefix='conda run -n wdywfm-adaptive-robot-p36 ',
+                 model_directory="./model"):
+        # type: (str, str, str) ->  None
+        self.training_csv_file = "training_data.csv"  # type: str
+        self.testing_csv_file = testing_csv_file  # type: str
+        self.validation_csv_file = "validation_data.csv"  # type: str
+        self.validation_size = 0.4  # type: float
+        self.model_directory = model_directory  # type: str
 
         self.prefix = prefix
         self.python_script = '../transformer-type-estimator/transformer_analyser.py'
         self.training_command = self.prefix + 'python {} --trainlocal --train_csv "{}" --test_csv "{}"'
-        self.prediction_command = self.prefix + 'python {} --predlocal --input_text "{}"'
+        self.prediction_command = self.prefix + 'python {} --predlocal --input_text "{}" --modelDirectory "{}"'
 
     def train(self, original_dataframe, test_size, label_column, random_seed):
         logging.info("Test size {}".format(test_size))
@@ -213,11 +215,13 @@ class TunedTransformerTypeAnalyser(object):
         logging.info("exit_code {}".format(exit_code))
 
     def obtain_probabilities(self, text_features):
+        # type: (np.ndarray) -> np.ndarray
+
         text_as_string = text_features.item()
-        command = self.prediction_command.format(self.python_script, text_as_string)
+        command = self.prediction_command.format(self.python_script, text_as_string, self.model_directory)  # type: str
 
         logging.info("Running {}".format(command))
-        standard_output = subprocess.check_output(command, shell=True)
+        standard_output = subprocess.check_output(command, shell=True)  # type:str
         logging.debug("standard_output {}".format(standard_output))
 
         return np.array([float(standard_output)])

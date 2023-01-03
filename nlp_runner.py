@@ -48,12 +48,16 @@ def get_dataset():
     return dataframe
 
 
-def configure_tuned_transformer(testing_csv_file, prefix, text_label_column, dataframe=None, test_size=None,
+def configure_tuned_transformer(testing_csv_file, prefix, text_label_column,
+                                model_directory=None,
+                                dataframe=None,
+                                test_size=None,
                                 column_for_stratify=None,
                                 random_seed=None,
                                 train=True):
-    # type: (str, str, str, Optional[pd.DataFrame], Optional[float], Optional[str], Optional[float], bool) -> Tuple[TunedTransformerTypeAnalyser, np.ndarray, np.ndarray]
-    type_analyser = TunedTransformerTypeAnalyser(testing_csv_file=testing_csv_file, prefix=prefix)
+    # type: (str, str, str, Optional[str] Optional[pd.DataFrame], Optional[float], Optional[str], Optional[float], bool) -> Tuple[TunedTransformerTypeAnalyser, np.ndarray, np.ndarray]
+    type_analyser = TunedTransformerTypeAnalyser(testing_csv_file=testing_csv_file, prefix=prefix,
+                                                 model_directory=model_directory)
 
     if train:
         type_analyser.train(dataframe, test_size, column_for_stratify, random_seed)
@@ -98,14 +102,17 @@ def main():
 
     # type_analyser, text_test_features, label_test_array = configure_naive_bayes(dataframe, test_size)
     testing_csv_file = '../transformer-type-estimator/data/testing_data.csv'  # type: str
-    prefix = 'conda run -n wdywfm-adaptive-robot-p36 '  # type:str
+    prefix = 'conda run -n tf '  # type:str
     text_label_column = "will_help"  # type:str
-    type_analyser, text_test_features, label_test_array = configure_tuned_transformer(testing_csv_file=testing_csv_file,
-                                                                                      text_label_column=text_label_column,
-                                                                                      prefix=prefix,
-                                                                                      train=False)
+    model_directory = "/home/cgc87/github/transformer-type-estimator/model"  # type:str
 
-    robot_controller = AutonomicManagerController(type_analyser, model_generator=gamemodel.generate_game_model)
+    analyser, text_test_features, label_test_array = configure_tuned_transformer(testing_csv_file=testing_csv_file,
+                                                                                 text_label_column=text_label_column,
+                                                                                 prefix=prefix,
+                                                                                 model_directory=model_directory,
+                                                                                 train=False)
+
+    robot_controller = AutonomicManagerController(analyser, model_generator=gamemodel.generate_game_model)
     # robot_controller = ProSocialRobotController()
     # robot_controller = ProSelfRobotController()
 
