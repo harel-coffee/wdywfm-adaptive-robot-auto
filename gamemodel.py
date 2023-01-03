@@ -1,7 +1,7 @@
 import logging
 
 import gambit
-from typing import Tuple
+from typing import Tuple, Optional
 
 from game import InteractionGame
 
@@ -19,12 +19,18 @@ PERSONAL_IDENTITY_TYPE = "PERSONAL_IDENTITY"  # type:str
 # Victim success = 0.2
 
 
-def generate_game_model(zero_responder_ratio, selfish_ratio, filename="game_file.efg"):
-    # type: (Tuple[int, int], Tuple[int, int], str) -> InteractionGame
+def generate_game_model(zero_responder_ratio,  # type: Tuple[int, int]
+                        selfish_ratio,  # type: Tuple[int, int]
+                        robot_payoff_with_support=None,  # type: Optional[gambit.Rational]
+                        robot_payoff_call_staff=None,  # type: Optional[gambit.Rational]
+                        filename="game_file.efg"  # type: str
+                        ):
+    # type: (...) -> InteractionGame
 
-    askhelp_success_robot_payoff = 3  # Victim and Player with R + Extra with FR
+    askhelp_success_robot_payoff = robot_payoff_with_support or 3  # Victim and Player with R + Extra with FR
     askhelp_fail_robot_payoff = gambit.Rational(11, 5)  # Extra with FR + Player with R + Victim unassisted
-    callstaff_success_robot_payoff = gambit.Rational(14, 5)  # Victim and Player with FR + Extra unassisted
+    callstaff_success_robot_payoff = robot_payoff_call_staff or gambit.Rational(14,
+                                                                                5)  # Victim and Player with FR + Extra unassisted
     callstaff_fail_robot_payoff = gambit.Rational(13, 5)  # Victim with FR + Player unassisted + Extra unassisted
 
     logging.debug("zero_responder_ratio:  %s " % str(zero_responder_ratio))

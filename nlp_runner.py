@@ -48,14 +48,17 @@ def get_dataset():
     return dataframe
 
 
-def configure_tuned_transformer(testing_csv_file, prefix, text_label_column,
-                                model_directory=None,
-                                dataframe=None,
-                                test_size=None,
-                                column_for_stratify=None,
-                                random_seed=None,
-                                train=True):
-    # type: (str, str, str, Optional[str] Optional[pd.DataFrame], Optional[float], Optional[str], Optional[float], bool) -> Tuple[TunedTransformerTypeAnalyser, np.ndarray, np.ndarray]
+def configure_tuned_transformer(testing_csv_file,  # type: str
+                                prefix,  # type: str
+                                text_label_column,  # type: str
+                                model_directory=None,  # type: Optional[str]
+                                dataframe=None,  # type: Optional[pd.DataFrame]
+                                test_size=None,  # type: Optional[float]
+                                column_for_stratify=None,  # type: Optional[str]
+                                random_seed=None,  # type: Optional[float]
+                                train=True  # type: bool
+                                ):
+    # type: (...) -> Tuple[TunedTransformerTypeAnalyser, np.ndarray, np.ndarray]
     type_analyser = TunedTransformerTypeAnalyser(testing_csv_file=testing_csv_file, prefix=prefix,
                                                  model_directory=model_directory)
 
@@ -118,7 +121,7 @@ def main():
 
     emergency_environment = EmergencyEvacuationEnvironment(text_test_features, label_test_array,
                                                            len(label_test_array))
-    _ = run_scenario(robot_controller, emergency_environment, 1)
+    _ = run_scenario(robot_controller, emergency_environment, num_scenarios=1)
 
 
 if __name__ == "__main__":
