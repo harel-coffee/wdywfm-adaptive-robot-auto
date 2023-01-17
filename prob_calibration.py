@@ -9,7 +9,7 @@ from sklearn.calibration import calibration_curve, CalibratedClassifierCV
 from sklearn.metrics import brier_score_loss, roc_auc_score, log_loss
 from typing import Optional, Union, Tuple
 
-from analyser import SyntheticTypeAnalyser
+from analyser import SyntheticTypeAnalyser, CalibratedTypeAnalyser
 
 
 def plot_reliability_diagram(person_type, person_type_probabilities, bins, probability_label):
@@ -63,7 +63,7 @@ def start_calibration(sensor_data, person_type, model_file, calibrate=False, bin
 
 
 def get_calibrated_model(type_analyser, calibration_sensor_data_file, calibration_person_type_file, method):
-    # type: (SyntheticTypeAnalyser, str, str, str) ->  Tuple[CalibratedClassifierCV, np.ndarray, np.ndarray]
+    # type: (SyntheticTypeAnalyser, str, str, str) ->  Tuple[CalibratedTypeAnalyser, np.ndarray, np.ndarray]
 
     sensor_data_validation = load(calibration_sensor_data_file)  # type:np.ndarray
     logging.info("Calibration sensor data loaded from: {}".format(calibration_sensor_data_file))
@@ -73,9 +73,8 @@ def get_calibrated_model(type_analyser, calibration_sensor_data_file, calibratio
     logging.info("Calibration person type data loaded from: {}".format(calibration_sensor_data_file))
 
     keras_classifier = type_analyser.keras_classifier
-    calibrated_classifier = CalibratedClassifierCV(base_estimator=keras_classifier, cv="prefit",
-                                                   method=method)  # type: CalibratedClassifierCV
-    calibrated_classifier.fit(sensor_data_validation, person_type_validation)
+    calibrated_classifier = CalibratedTypeAnalyser(keras_classifier, method)  # type: CalibratedTypeAnalyser
+    calibrated_classifier.train(sensor_data_validation, person_type_validation)
 
     return calibrated_classifier, sensor_data_validation, person_type_validation
 
@@ -101,14 +100,14 @@ def start_probability_calibration(type_analyser, calibration_sensor_data_file, c
                              probability_label="after_training")
 
     logging.info("Calibrating probabilities using: {} method".format(method))
-    calibrated_probabilities_validation = calibrated_classifier.predict_proba(
-        sensor_data_validation)[:, 1]  # type: np.ndarray
+    calibrated_probabilities_validation = calibrated_classifier.obtain_probabilities(
+        sensor_data_validation)  # type: np.ndarray
     plot_reliability_diagram(person_type_validation, calibrated_probabilities_validation, bins,
                              probability_label="after_calibration_validation")
 
     # We need to try this later over the test dataset
     logging.info("Testing samples: {}".format(sensor_data_test.shape[0]))
-    calibrated_probabilities_test = calibrated_classifier.predict_proba(sensor_data_test)[:, 1]  # type: np.ndarray
+    calibrated_probabilities_test = calibrated_classifier.obtain_probabilities(sensor_data_test)  # type: np.ndarray
     plot_reliability_diagram(person_type_test, calibrated_probabilities_test, bins,
                              probability_label="after_calibration_test")
 

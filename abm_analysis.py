@@ -49,8 +49,15 @@ SIMULATION_SCENARIOS = {NO_SUPPORT_COLUMN: [],
                         ADAPTIVE_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND,
                                                   ENABLE_STAFF_COMMAND]}  # type: Dict[str, List[str]]
 
+# Settings for experiments
 SAMPLES = 100  # type:int
 MAX_NETLOGO_TICKS = 2000  # type: int
+FALL_LENGTHS = [minutes * 60 for minutes in range(1, 11)]  # type: List[int]
+
+
+# For test runs
+# SAMPLES = 10  # type:int
+# FALL_LENGTHS = [minutes * 60 for minutes in range(1, 2)]  # type: List[int]
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -291,10 +298,9 @@ def perform_analysis(fall_length):
 
 
 if __name__ == "__main__":
-    fall_lengths = [minutes * 60 for minutes in range(1, 11)]  # type: List[int]
 
-    for length in fall_lengths:
+    for length in FALL_LENGTHS:
         simulate_and_store(length)
 
-    metrics = pd.DataFrame([perform_analysis(length) for length in fall_lengths])  # type: pd.DataFrame
+    metrics = pd.DataFrame([perform_analysis(length) for length in FALL_LENGTHS])  # type: pd.DataFrame
     metrics.to_csv("data/metrics.csv")

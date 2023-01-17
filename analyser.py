@@ -12,6 +12,8 @@ from keras.callbacks import History
 from keras.layers import Dropout
 from keras.optimizers import Optimizer
 from keras.wrappers.scikit_learn import KerasClassifier
+from sklearn.base import BaseEstimator
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import MultinomialNB
@@ -26,6 +28,22 @@ TYPE_TO_CLASS = {
     PERSONAL_IDENTITY_TYPE: 0,
     SHARED_IDENTITY_TYPE: 1
 }
+
+
+class CalibratedTypeAnalyser(object):
+
+    def __init__(self, base_estimator, method):
+        # type: (BaseEstimator, str) -> None
+        self.calibrated_classifier = CalibratedClassifierCV(base_estimator=base_estimator, cv="prefit",
+                                                            method=method)  # type: CalibratedClassifierCV
+
+    def train(self, sensor_data_validation, person_type_validation):
+        # type: (np.ndarray, np.ndarray) -> None
+        self.calibrated_classifier.fit(sensor_data_validation, person_type_validation)
+
+    def obtain_probabilities(self, sensor_data):
+        # type: (np.ndarray) -> np.ndarray
+        return self.calibrated_classifier.predict_proba(sensor_data)[:, 1]
 
 
 class SyntheticTypeAnalyser(object):

@@ -6,9 +6,11 @@ import numpy as np
 from typing import Dict
 
 import abm_gamemodel
-from analyser import SyntheticTypeAnalyser
+from abm_trainer import CALIBRATION_SENSOR_DATA_FILE, CALIBRATION_PERSON_TYPE_FILE
+from analyser import SyntheticTypeAnalyser, CalibratedTypeAnalyser
 from controller import AutonomicManagerController
 from environment import NetlogoEvacuationEnvironment
+from prob_calibration import get_calibrated_model
 from synthetic_runner import TYPE_ANALYSER_MODEL_FILE, ENCODER_FILE
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # Running inference on CPU
@@ -48,7 +50,12 @@ def main():
     arguments = parser.parse_args()
     configuration = vars(arguments)  # type:Dict
 
-    type_analyser = SyntheticTypeAnalyser(model_file=PROJECT_DIRECTORY + TYPE_ANALYSER_MODEL_FILE)  # type: SyntheticTypeAnalyser
+    base_type_analyser = SyntheticTypeAnalyser(
+        model_file=PROJECT_DIRECTORY + TYPE_ANALYSER_MODEL_FILE)  # type: SyntheticTypeAnalyser
+    type_analyser, _, _ = get_calibrated_model(base_type_analyser,
+                                               PROJECT_DIRECTORY + CALIBRATION_SENSOR_DATA_FILE,
+                                               PROJECT_DIRECTORY + CALIBRATION_PERSON_TYPE_FILE,
+                                               method="isotonic")  # type: CalibratedTypeAnalyser
     robot_controller = AutonomicManagerController(type_analyser,
                                                   abm_gamemodel.generate_game_model)
 
