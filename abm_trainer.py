@@ -71,8 +71,9 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
     target_accuracy = None
     under_sample = False  # type: bool
     calculate_weights = True  # type: bool
-    number_of_bins = 10  # type: int
-    calibration_method = "sigmoid"  # type:str
+    number_of_bins = 20  # type: int
+    # calibration_method = "sigmoid"  # type:str
+    calibration_method = "isotonic"  # type:str
 
     sensor_data, person_type = get_netlogo_dataset()  # type: Tuple[np.ndarray, np.ndarray]
     sensor_data_training, sensor_data_test, person_type_training, person_type_test = train_test_split(sensor_data,

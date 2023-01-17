@@ -4,7 +4,7 @@ import logging
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.calibration import calibration_curve, CalibratedClassifierCV
-from sklearn.metrics import brier_score_loss
+from sklearn.metrics import brier_score_loss, roc_auc_score, log_loss
 from typing import Optional
 
 from analyser import SyntheticTypeAnalyser
@@ -18,11 +18,16 @@ def plot_reliability_diagram(person_type, person_type_probabilities, bins, proba
     calibration_error = calculate_ece_from_calibration_curve(bin_true_probability, bin_predicted_probability,
                                                              person_type_probabilities)  # type: float
     brier_score = brier_score_loss(bin_true_probability, bin_predicted_probability)  # type: float
-    logging.info("Expected Calibration Error: {}. Brier score: {}".format(calibration_error, brier_score))
+    roc_auc = roc_auc_score(person_type, person_type_probabilities)  # type: float
+    log_loss_value = log_loss(person_type, person_type_probabilities)  # type:float
+    logging.info(
+        "Expected Calibration Error: {}. Brier score: {}. ROC AUC: {}. Log loss: {}".format(calibration_error,
+                                                                                            brier_score, roc_auc,
+                                                                                            log_loss_value))
 
     plt.hist(person_type_probabilities,
              weights=np.ones_like(person_type_probabilities) / len(person_type_probabilities),
-             alpha=.4, bins=np.maximum(10, bins))
+             alpha=.4, bins=bins)
     plt.plot([0, 1], [0, 1], color="#FE4A49", linestyle=":", label="Perfectly calibrated model")
     plt.plot(bin_predicted_probability, bin_true_probability, "s-", label=probability_label, color="#162B37")
 
@@ -59,6 +64,8 @@ def start_probability_calibration(type_analyser, sensor_data_validation, person_
                                   person_type_test, bins, method="isotonic"):
     # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, str) -> None
 
+    logging.info("Validation samples: {}".format(sensor_data_validation.shape[0]))
+
     person_type_probabilities = type_analyser.obtain_probabilities(sensor_data_validation)  # type: np.ndarray
     plot_reliability_diagram(person_type_validation, person_type_probabilities, bins,
                              probability_label="after_training")
@@ -69,11 +76,17 @@ def start_probability_calibration(type_analyser, sensor_data_validation, person_
     calibrated_classifier = CalibratedClassifierCV(base_estimator=keras_classifier, cv="prefit",
                                                    method=method)  # type: CalibratedClassifierCV
     calibrated_classifier.fit(sensor_data_validation, person_type_validation)
+    calibrated_probabilities_validation = calibrated_classifier.predict_proba(
+        sensor_data_validation)[:, 1]  # type: np.ndarray
+    plot_reliability_diagram(person_type_validation, calibrated_probabilities_validation, bins,
+                             probability_label="after_calibration_validation")
 
     # We need to try this later over the test dataset
+    logging.info("Testing samples: {}".format(sensor_data_test.shape[0]))
+
     calibrated_probabilities_test = calibrated_classifier.predict_proba(sensor_data_test)[:, 1]  # type: np.ndarray
     plot_reliability_diagram(person_type_test, calibrated_probabilities_test, bins,
-                             probability_label="after_calibration")
+                             probability_label="after_calibration_test")
 
 
 def get_expected_calibration_error(sensor_data, person_type, model_file=None, type_analyser=None):
