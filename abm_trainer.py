@@ -3,6 +3,7 @@ import pickle
 
 import numpy as np
 import pandas as pd
+from numpy import save
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from typing import List, Tuple, Optional
@@ -22,6 +23,8 @@ LEARNING_RATE = 0.001  # type: float
 UNITS_PER_LAYER = None  # For plain Logistic Regression
 
 TRAINING_DATA_DIRECTORY = "data/training"
+CALIBRATION_SENSOR_DATA_FILE = "{}/sensor_data_validation.npy".format(TRAINING_DATA_DIRECTORY)
+CALIBRATION_PERSON_TYPE_FILE = "{}/person_type_validation.npy".format(TRAINING_DATA_DIRECTORY)
 NETLOGO_DATA_FILE_PREFIX = "request-for-help-results"  # type:str
 REQUEST_RESULT_COLUMN = "offer-help"  # type:str
 
@@ -90,24 +93,29 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
         test_size=0.33,
         random_state=0)
 
-    _ = train_type_analyser(sensor_data_training, person_type_training,
-                            sensor_data_validation, person_type_validation,
-                            training_batch_size, target_accuracy,
-                            units_per_layer, max_epochs,
-                            learning_rate=learning_rate,
-                            patience=early_stopping_patience,
-                            balance_data=under_sample,
-                            calculate_weights=calculate_weights)  # type: SyntheticTypeAnalyser
+    # _ = train_type_analyser(sensor_data_training, person_type_training,
+    #                         sensor_data_validation, person_type_validation,
+    #                         training_batch_size, target_accuracy,
+    #                         units_per_layer, max_epochs,
+    #                         learning_rate=learning_rate,
+    #                         patience=early_stopping_patience,
+    #                         balance_data=under_sample,
+    #                         calculate_weights=calculate_weights)  # type: SyntheticTypeAnalyser
 
-    type_analyser = SyntheticTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
+    # type_analyser = SyntheticTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
 
     with open(ENCODER_FILE, "rb") as encoder_file:
         encoder = pickle.load(encoder_file)  # type: OneHotEncoder
         sensor_data_test = encoder.transform(sensor_data_test)
         logging.info("Test dataset inputs encoded")
 
-    start_probability_calibration(type_analyser, sensor_data_validation, person_type_validation, sensor_data_test,
-                                  person_type_test, number_of_bins, calibration_method)
+    save(CALIBRATION_SENSOR_DATA_FILE, sensor_data_validation)
+    save(CALIBRATION_PERSON_TYPE_FILE, person_type_validation)
+    logging.info("Data for calibration fitting saved at {} and {}".format(CALIBRATION_SENSOR_DATA_FILE,
+                                                                          CALIBRATION_PERSON_TYPE_FILE))
+
+    start_probability_calibration(TYPE_ANALYSER_MODEL_FILE, CALIBRATION_SENSOR_DATA_FILE, CALIBRATION_PERSON_TYPE_FILE,
+                                  sensor_data_test, person_type_test, number_of_bins, calibration_method)
 
 
 if __name__ == "__main__":

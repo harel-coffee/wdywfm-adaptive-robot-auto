@@ -1,11 +1,13 @@
 import datetime
 import logging
+import time
 
 import numpy as np
 from matplotlib import pyplot as plt
+from numpy import load
 from sklearn.calibration import calibration_curve, CalibratedClassifierCV
 from sklearn.metrics import brier_score_loss, roc_auc_score, log_loss
-from typing import Optional
+from typing import Optional, Union, Tuple
 
 from analyser import SyntheticTypeAnalyser
 
@@ -60,22 +62,45 @@ def start_calibration(sensor_data, person_type, model_file, calibrate=False, bin
         # start_plat_scalling(person_type, person_type_probabilities, bins)
 
 
-def start_probability_calibration(type_analyser, sensor_data_validation, person_type_validation, sensor_data_test,
-                                  person_type_test, bins, method="isotonic"):
-    # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, str) -> None
+def get_calibrated_model(type_analyser, calibration_sensor_data_file, calibration_person_type_file, method):
+    # type: (SyntheticTypeAnalyser, str, str, str) ->  Tuple[CalibratedClassifierCV, np.ndarray, np.ndarray]
 
+    sensor_data_validation = load(calibration_sensor_data_file)  # type:np.ndarray
+    logging.info("Calibration sensor data loaded from: {}".format(calibration_sensor_data_file))
     logging.info("Validation samples: {}".format(sensor_data_validation.shape[0]))
+
+    person_type_validation = load(calibration_person_type_file)  # type:np.ndarray
+    logging.info("Calibration person type data loaded from: {}".format(calibration_sensor_data_file))
+
+    keras_classifier = type_analyser.keras_classifier
+    calibrated_classifier = CalibratedClassifierCV(base_estimator=keras_classifier, cv="prefit",
+                                                   method=method)  # type: CalibratedClassifierCV
+    calibrated_classifier.fit(sensor_data_validation, person_type_validation)
+
+    return calibrated_classifier, sensor_data_validation, person_type_validation
+
+
+def start_probability_calibration(type_analyser, calibration_sensor_data_file, calibration_person_type_file,
+                                  sensor_data_test, person_type_test, bins, method="isotonic"):
+    # type: (Union[SyntheticTypeAnalyser, str], str, str, np.ndarray, np.ndarray, int, str) -> None
+
+    calibration_start_time = time.time()  # type: float
+
+    if isinstance(type_analyser, basestring):
+        type_analyser = SyntheticTypeAnalyser(model_file=type_analyser)  # type:SyntheticTypeAnalyser
+
+    calibrated_classifier, sensor_data_validation, person_type_validation = get_calibrated_model(
+        type_analyser,
+        calibration_sensor_data_file,
+        calibration_person_type_file,
+        method)
+    logging.info("Finished calibrating probabilities after {} seconds".format(time.time() - calibration_start_time))
 
     person_type_probabilities = type_analyser.obtain_probabilities(sensor_data_validation)  # type: np.ndarray
     plot_reliability_diagram(person_type_validation, person_type_probabilities, bins,
                              probability_label="after_training")
 
     logging.info("Calibrating probabilities using: {} method".format(method))
-
-    keras_classifier = type_analyser.keras_classifier
-    calibrated_classifier = CalibratedClassifierCV(base_estimator=keras_classifier, cv="prefit",
-                                                   method=method)  # type: CalibratedClassifierCV
-    calibrated_classifier.fit(sensor_data_validation, person_type_validation)
     calibrated_probabilities_validation = calibrated_classifier.predict_proba(
         sensor_data_validation)[:, 1]  # type: np.ndarray
     plot_reliability_diagram(person_type_validation, calibrated_probabilities_validation, bins,
@@ -83,7 +108,6 @@ def start_probability_calibration(type_analyser, sensor_data_validation, person_
 
     # We need to try this later over the test dataset
     logging.info("Testing samples: {}".format(sensor_data_test.shape[0]))
-
     calibrated_probabilities_test = calibrated_classifier.predict_proba(sensor_data_test)[:, 1]  # type: np.ndarray
     plot_reliability_diagram(person_type_test, calibrated_probabilities_test, bins,
                              probability_label="after_calibration_test")

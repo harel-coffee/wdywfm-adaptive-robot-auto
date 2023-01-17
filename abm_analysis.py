@@ -293,8 +293,8 @@ def perform_analysis(fall_length):
 if __name__ == "__main__":
     fall_lengths = [minutes * 60 for minutes in range(1, 11)]  # type: List[int]
 
-    # for length in fall_lengths:
-    #     simulate_and_store(length)
+    for length in fall_lengths:
+        simulate_and_store(length)
 
     metrics = pd.DataFrame([perform_analysis(length) for length in fall_lengths])  # type: pd.DataFrame
     metrics.to_csv("data/metrics.csv")
