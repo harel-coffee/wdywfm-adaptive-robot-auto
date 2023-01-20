@@ -5,7 +5,7 @@ import time
 import numpy as np
 from matplotlib import pyplot as plt
 from numpy import load
-from sklearn.calibration import calibration_curve, CalibratedClassifierCV
+from sklearn.calibration import calibration_curve
 from sklearn.metrics import brier_score_loss, roc_auc_score, log_loss
 from typing import Optional, Union, Tuple
 

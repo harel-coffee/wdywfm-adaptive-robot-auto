@@ -1,3 +1,4 @@
+import logging
 import math
 import multiprocessing
 import time
@@ -52,12 +53,12 @@ SIMULATION_SCENARIOS = {NO_SUPPORT_COLUMN: [],
 # Settings for experiments
 SAMPLES = 100  # type:int
 MAX_NETLOGO_TICKS = 2000  # type: int
-FALL_LENGTHS = [minutes * 60 for minutes in range(1, 11)]  # type: List[int]
+FALL_LENGTHS = [minutes * 30 for minutes in range(1, 11)]  # type: List[int]
 
 
 # For test runs
 # SAMPLES = 10  # type:int
-# FALL_LENGTHS = [minutes * 60 for minutes in range(1, 2)]  # type: List[int]
+# FALL_LENGTHS = [minutes * 60 for minutes in range(3, 4)]  # type: List[int]
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -197,6 +198,7 @@ def plot_results(csv_file, samples_in_title=False):
         ADAPTIVE_SUPPORT_COLUMN: "Adaptive"
     })
 
+    print("Metrics for dataset {}".format(csv_file))
     print(results_dataframe.describe())
 
     title = ""
@@ -215,7 +217,7 @@ def plot_results(csv_file, samples_in_title=False):
 
 
 def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alternative="two-sided"):
-    # type: (str, str, str, str) -> None
+    # type: (str, str, str, str) -> bool
     print("CURRENT ANALYSIS: Analysing file {}".format(csv_file))
     results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
 
@@ -245,11 +247,16 @@ def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alt
     threshold = 0.05  # type:float
     u, p_value = mannwhitneyu(x=first_scenario_data, y=second_scenario_data, alternative=alternative)
     print("U={} , p={}".format(u, p_value))
+
+    is_first_sample_less_than_second = False  # type: bool
     if p_value > threshold:
         print("FAILS TO REJECT NULL HYPOTHESIS: {}".format(null_hypothesis))
     else:
         print("REJECT NULL HYPOTHESIS: {}".format(null_hypothesis))
         print(alternative_hypothesis)
+        is_first_sample_less_than_second = True
+
+    return is_first_sample_less_than_second
 
 
 def simulate_and_store(fall_length):
@@ -287,20 +294,25 @@ def perform_analysis(fall_length):
     current_file_metrics = get_current_file_metrics(current_file)  # type: Dict[str, float]
     current_file_metrics["fall_length"] = fall_length
 
-    for alternative_scenario in SIMULATION_SCENARIOS.keys():
-        if alternative_scenario != ADAPTIVE_SUPPORT_COLUMN:
-            test_hypothesis(first_scenario_column=ADAPTIVE_SUPPORT_COLUMN,
-                            second_scenario_column=alternative_scenario,
-                            alternative="less",
-                            csv_file=current_file)
+    alternative = "less"  # type:str
+    for scenario_under_analysis in SIMULATION_SCENARIOS.keys():
+        for alternative_scenario in SIMULATION_SCENARIOS.keys():
+            if alternative_scenario != scenario_under_analysis:
+                scenario_description = "{}_{}_{}".format(scenario_under_analysis, alternative, alternative_scenario)
+                current_file_metrics[scenario_description] = test_hypothesis(
+                    first_scenario_column=scenario_under_analysis,
+                    second_scenario_column=alternative_scenario,
+                    alternative=alternative,
+                    csv_file=current_file)
 
     return current_file_metrics
 
 
 if __name__ == "__main__":
-
-    for length in FALL_LENGTHS:
-        simulate_and_store(length)
+    # for length in FALL_LENGTHS:
+    #     simulate_and_store(length)
 
     metrics = pd.DataFrame([perform_analysis(length) for length in FALL_LENGTHS])  # type: pd.DataFrame
-    metrics.to_csv("data/metrics.csv")
+    metrics_file = "data/metrics.csv"  # type: str
+    metrics.to_csv(metrics_file)
+    logging.info("Consolidates metrics written to {}".format(metrics_file))
