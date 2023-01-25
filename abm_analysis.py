@@ -219,8 +219,8 @@ def plot_results(csv_file, samples_in_title=False):
     plt.show()
 
 
-def test_kruskal_wallis(csv_file, column_list, threshold=0.05):
-    # type: (str, List[str], float) -> Dict[str, bool]
+def test_kruskal_wallis(csv_file, column_list, threshold=0.05, method_for_adjusting="bonferroni"):
+    # type: (str, List[str], float, str) -> Dict[str, bool]
 
     import scikit_posthocs as sp
 
@@ -245,9 +245,10 @@ def test_kruskal_wallis(csv_file, column_list, threshold=0.05):
 
     if kruskal_result[1] < threshold:
         print("REJECT NULL HYPOTHESIS: {}".format(null_hypothesis))
+        print("Performing Post-Hoc pairwise Dunn’s test ({} correction)".format(method_for_adjusting))
         print(alternative_hypothesis)
 
-        p_values_dataframe = sp.posthoc_dunn(data_as_list, p_adjust="bonferroni")
+        p_values_dataframe = sp.posthoc_dunn(data_as_list, p_adjust=method_for_adjusting)
         print(p_values_dataframe)
 
         for first_scenario_index, second_scenario_index in combinations(range(0, len(column_list)), 2):
@@ -346,7 +347,8 @@ def perform_analysis(fall_length):
     current_file_metrics = get_current_file_metrics(current_file)  # type: Dict[str, float]
     current_file_metrics["fall_length"] = fall_length
 
-    current_file_metrics.update(test_kruskal_wallis(current_file, list(SIMULATION_SCENARIOS.keys())))
+    current_file_metrics.update(
+        test_kruskal_wallis(current_file, list(SIMULATION_SCENARIOS.keys())))
 
     # alternative = "less"  # type:str
     # for scenario_under_analysis in SIMULATION_SCENARIOS.keys():
