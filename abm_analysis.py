@@ -1,20 +1,20 @@
-import logging
 import math
 import multiprocessing
 import time
 import traceback
+from itertools import combinations
 from multiprocessing import Pool
+from pathlib import Path
+from typing import List, Tuple, Dict, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pyNetLogo
 import seaborn as sns
 import statsmodels.api as sm
-from pathlib import Path
-from pyNetLogo import NetLogoException
+from scipy import stats
 from scipy.stats import mannwhitneyu
-from typing import List, Tuple, Dict, Optional
+from scipy.stats.stats import KruskalResult
 
 PLOT_STYLE = 'seaborn-darkgrid'
 
@@ -53,7 +53,7 @@ SIMULATION_SCENARIOS = {NO_SUPPORT_COLUMN: [],
 # Settings for experiments
 SAMPLES = 100  # type:int
 MAX_NETLOGO_TICKS = 2000  # type: int
-FALL_LENGTHS = [minutes * 30 for minutes in range(1, 11)]  # type: List[int]
+FALL_LENGTHS = [minutes * 30 for minutes in range(1, 21)]  # type: List[int]
 
 
 # For test runs
@@ -87,6 +87,8 @@ def calculate_sample_size(mean_1, mean_2, std_dev_1, std_dev_2, alpha=0.05, powe
 
 def run_simulation(simulation_id, post_setup_commands):
     # type: (int, List[str]) -> Optional[float]
+    from pyNetLogo import NetLogoException
+
     try:
         current_seed = netlogo_link.report(SEED_SIMULATION_REPORTER)  # type:str
         netlogo_link.command("setup")
@@ -125,6 +127,7 @@ def run_simulation(simulation_id, post_setup_commands):
 def initialize(gui):
     # type: (bool) -> None
     global netlogo_link
+    import pyNetLogo
 
     netlogo_link = pyNetLogo.NetLogoLink(netlogo_home=NETLOGO_HOME,
                                          netlogo_version=NETLOGO_VERSION,
@@ -216,7 +219,56 @@ def plot_results(csv_file, samples_in_title=False):
     plt.show()
 
 
-def test_hypothesis(first_scenario_column, second_scenario_column, csv_file, alternative="two-sided"):
+def test_kruskal_wallis(csv_file, column_list, threshold=0.05):
+    # type: (str, List[str], float) -> Dict[str, bool]
+
+    import scikit_posthocs as sp
+
+    print("CURRENT ANALYSIS: Analysing file {}".format(csv_file))
+    results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
+
+    data_as_list = [results_dataframe[column_name].values for column_name in column_list]  # type: List[List[float]]
+
+    null_hypothesis = "KRUSKAL-WALLIS TEST: the population median of all of the groups are equal."  # type: str
+    alternative_hypothesis = "ALTERNATIVE HYPOTHESIS: " \
+                             "the population median of all of the groups are NOT equal."  # type:str
+
+    kruskal_result = stats.kruskal(data_as_list[0], data_as_list[1], data_as_list[2],
+                                   data_as_list[3])  # type: KruskalResult
+    print("statistic={} , p-value={}".format(kruskal_result[0], kruskal_result[1]))
+
+    result = {}  # type: Dict
+    for first_scenario_index, second_scenario_index in combinations(range(0, len(column_list)), 2):
+        first_scenario_description = column_list[first_scenario_index]  # type: str
+        second_scenario_description = column_list[second_scenario_index]  # type: str
+        result["{}_{}".format(first_scenario_description, second_scenario_description)] = False
+
+    if kruskal_result[1] < threshold:
+        print("REJECT NULL HYPOTHESIS: {}".format(null_hypothesis))
+        print(alternative_hypothesis)
+
+        p_values_dataframe = sp.posthoc_dunn(data_as_list, p_adjust="bonferroni")
+        print(p_values_dataframe)
+
+        for first_scenario_index, second_scenario_index in combinations(range(0, len(column_list)), 2):
+            first_scenario_description = column_list[first_scenario_index]  # type: str
+            second_scenario_description = column_list[second_scenario_index]  # type: str
+
+            p_value = p_values_dataframe.loc[first_scenario_index + 1][second_scenario_index + 1]
+            if p_value < threshold:
+                result["{}_{}".format(first_scenario_description, second_scenario_description)] = True
+                print("{} (median {}) is significantly different than {} (median {}), with p-value={}".format(
+                    first_scenario_description, np.median(data_as_list[first_scenario_index]),
+                    second_scenario_description, np.median(data_as_list[second_scenario_index]),
+                    p_value
+                ))
+    else:
+        print("FAILS TO REJECT NULL HYPOTHESIS: {}".format(null_hypothesis))
+
+    return result
+
+
+def test_mann_whitney(first_scenario_column, second_scenario_column, csv_file, alternative="two-sided"):
     # type: (str, str, str, str) -> bool
     print("CURRENT ANALYSIS: Analysing file {}".format(csv_file))
     results_dataframe = get_dataframe(csv_file)  # type: pd.DataFrame
@@ -294,16 +346,18 @@ def perform_analysis(fall_length):
     current_file_metrics = get_current_file_metrics(current_file)  # type: Dict[str, float]
     current_file_metrics["fall_length"] = fall_length
 
-    alternative = "less"  # type:str
-    for scenario_under_analysis in SIMULATION_SCENARIOS.keys():
-        for alternative_scenario in SIMULATION_SCENARIOS.keys():
-            if alternative_scenario != scenario_under_analysis:
-                scenario_description = "{}_{}_{}".format(scenario_under_analysis, alternative, alternative_scenario)
-                current_file_metrics[scenario_description] = test_hypothesis(
-                    first_scenario_column=scenario_under_analysis,
-                    second_scenario_column=alternative_scenario,
-                    alternative=alternative,
-                    csv_file=current_file)
+    current_file_metrics.update(test_kruskal_wallis(current_file, list(SIMULATION_SCENARIOS.keys())))
+
+    # alternative = "less"  # type:str
+    # for scenario_under_analysis in SIMULATION_SCENARIOS.keys():
+    #     for alternative_scenario in SIMULATION_SCENARIOS.keys():
+    #         if alternative_scenario != scenario_under_analysis:
+    #             scenario_description = "{}_{}_{}".format(scenario_under_analysis, alternative, alternative_scenario)
+    #             current_file_metrics[scenario_description] = test_mann_whitney(
+    #                 first_scenario_column=scenario_under_analysis,
+    #                 second_scenario_column=alternative_scenario,
+    #                 alternative=alternative,
+    #                 csv_file=current_file)
 
     return current_file_metrics
 
@@ -315,4 +369,4 @@ if __name__ == "__main__":
     metrics = pd.DataFrame([perform_analysis(length) for length in FALL_LENGTHS])  # type: pd.DataFrame
     metrics_file = "data/metrics.csv"  # type: str
     metrics.to_csv(metrics_file)
-    logging.info("Consolidates metrics written to {}".format(metrics_file))
+    print("Consolidates metrics written to {}".format(metrics_file))
