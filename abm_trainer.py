@@ -102,7 +102,7 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
     #                         balance_data=under_sample,
     #                         calculate_weights=calculate_weights)  # type: SyntheticTypeAnalyser
 
-    # type_analyser = SyntheticTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
+    type_analyser = SyntheticTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
 
     with open(ENCODER_FILE, "rb") as encoder_file:
         encoder = pickle.load(encoder_file)  # type: OneHotEncoder

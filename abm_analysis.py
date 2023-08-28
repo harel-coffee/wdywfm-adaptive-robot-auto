@@ -1,3 +1,11 @@
+""""
+Module for agent-based modelling analysis.
+
+This script generates the violin plot used in the journal submission (plot_results function).
+
+This module relies on Python 3+ for some statistical analysis.
+"""
+
 import math
 import multiprocessing
 import time
@@ -208,7 +216,13 @@ def plot_results(csv_file, samples_in_title=False):
     order = ["No Support", "Prosocial-Oriented", "Proself-Oriented", "Adaptive"]  # type: List[str]
     if samples_in_title:
         title = "{} samples".format(len(results_dataframe))
-    _ = sns.violinplot(data=results_dataframe, order=order).set_title(title)
+
+    plot_axis = sns.violinplot(data=results_dataframe, order=order)
+    plot_axis.set_title(title)
+    plot_axis.set_xlabel("IDEA variant")
+    plot_axis.set_ylabel("Evacuation time")
+
+
     plt.savefig("img/" + file_description + "_violin_plot.png", bbox_inches='tight', pad_inches=0)
     plt.savefig("img/" + file_description + "_violin_plot.eps", bbox_inches='tight', pad_inches=0)
     plt.show()
@@ -245,7 +259,7 @@ def test_kruskal_wallis(csv_file, column_list, threshold=0.05, method_for_adjust
 
     if kruskal_result[1] < threshold:
         print("REJECT NULL HYPOTHESIS: {}".format(null_hypothesis))
-        print("Performing Post-Hoc pairwise Dunn’s test ({} correction)".format(method_for_adjusting))
+        print("Performing Post-Hoc pairwise Dunn's test ({} correction)".format(method_for_adjusting))
         print(alternative_hypothesis)
 
         p_values_dataframe = sp.posthoc_dunn(data_as_list, p_adjust=method_for_adjusting)

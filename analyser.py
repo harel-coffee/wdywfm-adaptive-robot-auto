@@ -65,6 +65,9 @@ class SyntheticTypeAnalyser(object):
         else:
             self.keras_classifier = KerasClassifier(build_fn=self.get_network)
 
+    def __str__(self):
+        return self.keras_classifier.model.summary()
+
     def get_network(self):
         if self.units_per_layer is None:
             self.units_per_layer = []  # type: List[int]

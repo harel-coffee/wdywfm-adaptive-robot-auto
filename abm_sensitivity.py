@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn
 from matplotlib.axes import Axes
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 from abm_analysis import SIMULATION_SCENARIOS, ADAPTIVE_SUPPORT_COLUMN, run_parallel_simulations, PLOT_STYLE, \
     SET_FALL_LENGTH_COMMAND
@@ -14,8 +14,8 @@ EVACUATION_TIME_COLUMN = "evacuation_time"
 PASSENGER_BONUS_COLUMN = "passenger_bonus"  # type:str
 FALL_LENGTH_COLUMN = "fall_length"  # type:str
 
-FALL_LENGTHS = range(60, 660, 60)  # type: List[int]
-PASSENGER_BONUS = range(5, 55, 5)  # type: List[int]
+FALL_LENGTHS = range(30, 630, 30)  # type: List[int]
+PASSENGER_BONUS = range(2, 42, 2)  # type: List[int]
 SENSITIVITY_SAMPLES = 30  # type: int
 
 # FALL_LENGTHS = [60, 600]  # type: List[int]
@@ -27,7 +27,8 @@ SENSITIVITY_DATA_FILE = "data/sensitivity_analysis.csv"  # type:str
 SET_PASSENGER_BONUS_COMMAND = "set ROBOT_REQUEST_BONUS {}"  # type:str
 
 
-def get_heatmap(annotated=False):
+def get_heatmap(annotated=False, figure_size=(10, 7)):
+    # type: (bool, Tuple) -> None
     experiment_data = pd.read_csv(SENSITIVITY_DATA_FILE, index_col=[0])  # type: pd.DataFrame
     experiment_data = experiment_data.dropna()
 
@@ -40,7 +41,8 @@ def get_heatmap(annotated=False):
 
     print(heatmap_data)
 
-    axes = seaborn.heatmap(heatmap_data, annot=annotated, fmt=".0f", cmap="YlGnBu")  # type: Axes
+    _, axes = plt.subplots(figsize=figure_size)
+    seaborn.heatmap(heatmap_data, annot=annotated, fmt=".0f", cmap="YlGnBu", ax=axes)  # type: Axes
     axes.set(xlabel="Helping Effect Increase (%)", ylabel="Fall length (s)")
     new_x_labels = [int(100 * float(label.get_text())) for label in axes.get_xticklabels()]  # type: List[int]
     axes.set_xticklabels(new_x_labels)
@@ -80,3 +82,5 @@ if __name__ == "__main__":
     plt.style.use(PLOT_STYLE)
     # generate_data_for_analysis()
     get_heatmap(annotated=True)
+    get_heatmap(annotated=False)
+

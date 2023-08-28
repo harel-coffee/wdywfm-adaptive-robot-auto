@@ -88,6 +88,7 @@ def start_probability_calibration(type_analyser, calibration_sensor_data_file, c
     if isinstance(type_analyser, basestring):
         type_analyser = SyntheticTypeAnalyser(model_file=type_analyser)  # type:SyntheticTypeAnalyser
 
+    logging.info(str(type_analyser))
     calibrated_classifier, sensor_data_validation, person_type_validation = get_calibrated_model(
         type_analyser,
         calibration_sensor_data_file,
