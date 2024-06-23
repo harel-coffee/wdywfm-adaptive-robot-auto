@@ -1,21 +1,30 @@
 import glob
-import natsort
 
+import natsort
 from PIL import Image
 from typing import List
 
-from abm_analysis import NETLOGO_PROJECT_DIRECTORY
+WORKSPACE_FOLDER = "/home/cgc87/github/wdywfm-adaptive-robot/"
+FRAME_FOLDER = WORKSPACE_FOLDER + "frames"  # type:str
 
-FRAME_FOLDER = NETLOGO_PROJECT_DIRECTORY + "impact2.10.7/frames"  # type:str
 
+def generate_video(simulation_id, frame_duration=200):
+    # type: ( str, int) -> None
+    search_string = "{}/view_{}_*png".format(FRAME_FOLDER, simulation_id)  # type: str
+    frame_list = natsort.natsorted(glob.glob(search_string))  # type: List[str]
+    number_of_frames = len(frame_list)  # type: int
 
-def main(frame_duration=200, output_file="img/evacuation_simulation.gif"):
-    # type: (int, str) -> None
+    if number_of_frames == 0:
+        print("No frames for GIF generation for simulation {}".format(simulation_id))
+        return
 
-    frame_list = natsort.natsorted(glob.glob("{}/*png".format(FRAME_FOLDER)))  # type: List[str]
-    print("Generating GIF for {} frames...".format(len(frame_list)))
-    frames = [Image.open(frame_file) for frame_file in frame_list]  # type: List[Image]
+    print("Generating GIF from {} frames for simulation...".format(number_of_frames, simulation_id))
+    frames = []  # type: List[Image]
+    for frame_file in frame_list:
+        frame_as_image = Image.open(frame_file)  # type: Image
+        frames.append(frame_as_image)
 
+    output_file = WORKSPACE_FOLDER + "video/video_{}.gif".format(simulation_id)
     first_frame = frames[0]  # type: Image
     first_frame.save(output_file, format="GIF", append_images=frames,
                      save_all=True, duration=frame_duration)
@@ -23,4 +32,5 @@ def main(frame_duration=200, output_file="img/evacuation_simulation.gif"):
 
 
 if __name__ == "__main__":
-    main()
+    simulation_id = 0  # type: int
+    generate_video(simulation_id=simulation_id)

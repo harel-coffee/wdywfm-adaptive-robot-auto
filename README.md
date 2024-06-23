@@ -30,3 +30,9 @@ inference.
 * `abm_sensitivity.py`: This scripts generates the data and plots for the sensitivity
 analysis of evacuation time as a function of fall length and help factor.
 
+## IMPACT+ Explainer
+
+* IDEA robot: Lime green vehicle.
+* Passengers: Black stick figures.
+* Passengers evacuating: Pink stick figures.
+* Dead passengers: Grey stick figures.

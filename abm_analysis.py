@@ -45,6 +45,9 @@ SET_STAFF_SUPPORT_COMMAND = "set REQUEST_STAFF_SUPPORT {}"  # type: str
 SET_PASSENGER_SUPPORT_COMMAND = "set REQUEST_BYSTANDER_SUPPORT {}"  # type: str
 SET_FALL_LENGTH_COMMAND = "set DEFAULT_FALL_LENGTH {}"  # type:str
 SET_ENABLE_LOGGING_COMMAND = "set ENABLE_LOGGING {}"  # type:str
+SET_GENERATE_FRAMES_COMMAND = "set ENABLE_FRAME_GENERATION {}"  # type:str
+SET_NUMBER_PASSENGERS_COMMAND = "set number_passengers {}"  # type:str
+SET_NUMBER_STAFF_COMMAND = "set _number_normal_staff_members {}"  # type:str
 
 ENABLE_STAFF_COMMAND = SET_STAFF_SUPPORT_COMMAND.format("TRUE")  # type:str
 ENABLE_PASSENGER_COMMAND = SET_PASSENGER_SUPPORT_COMMAND.format("TRUE")  # type:str
@@ -69,13 +72,18 @@ MAX_NETLOGO_TICKS = 2000  # type: int
 FALL_LENGTHS = [minutes * 30 for minutes in range(1, 21)]  # type: List[int]
 
 # For test runs
-# SAMPLES = 3  # type:int
-# FALL_LENGTHS = [minutes * 60 for minutes in range(3, 4)]  # type: List[int]
-# SIMULATION_SCENARIOS = {ADAPTIVE_SUPPORT_COLUMN: [SET_ENABLE_LOGGING_COMMAND.format("TRUE"),
-#                                                   ENABLE_PASSENGER_COMMAND,
-#                                                   ENABLE_STAFF_COMMAND]}  # type: Dict[str, List[str]]
-# NETLOGO_MINIMUM_SEED = 0  # type:int
-# NETLOGO_MAXIMUM_SEED = 10  # type:int
+SAMPLES = 1  # type:int
+FALL_LENGTHS = [minutes * 60 for minutes in range(3, 4)]  # type: List[int]
+SIMULATION_SCENARIOS = {ADAPTIVE_SUPPORT_COLUMN: [
+    (SET_NUMBER_STAFF_COMMAND.format(1), True),
+    (SET_NUMBER_PASSENGERS_COMMAND.format(1), True),
+    (SET_GENERATE_FRAMES_COMMAND.format("TRUE"), False),
+    (SET_ENABLE_LOGGING_COMMAND.format("TRUE"), False),
+    (ENABLE_PASSENGER_COMMAND, False),
+    (ENABLE_STAFF_COMMAND, False)]}  # type: Dict[str, List[Tuple]]
+
+NETLOGO_MINIMUM_SEED = 0  # type:int
+NETLOGO_MAXIMUM_SEED = 10  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
@@ -100,19 +108,29 @@ def calculate_sample_size(mean_1, mean_2, std_dev_1, std_dev_2, alpha=0.05, powe
     return result
 
 
-def run_simulation(simulation_id, post_setup_commands, random_seed=0):
-    # type: (int, List[str], int) -> Optional[float]
+def run_simulation(simulation_id, setup_commands, random_seed=0):
+    # type: (int, List[Tuple], int) -> Optional[float]
     from pyNetLogo import NetLogoException
+
+    pre_setup_commands = [command for command, before_setup in setup_commands if before_setup]  # type: List[str]
+    post_setup_commands = [command for command, before_setup in setup_commands if not before_setup]  # type: List[str]
 
     try:
         random_seed = netlogo_link.report(SEED_SIMULATION_REPORTER.format(random_seed))  # type:str
+
+        if len(pre_setup_commands) > 0:
+            for pre_setup_command in pre_setup_commands:
+                netlogo_link.command(pre_setup_command)
+                print("id:{} seed:{} {} executed before setup".format(simulation_id, random_seed, pre_setup_command))
+        else:
+            print("id:{} seed:{} no pre-setup commands".format(simulation_id, random_seed))
+
         netlogo_link.command("setup")
-        netlogo_link.command(SET_SIMULATION_ID_COMMAND.format(simulation_id))
 
         if len(post_setup_commands) > 0:
-            for post_setup_command in post_setup_commands:
-                netlogo_link.command(post_setup_command)
-                print("id:{} seed:{} {} executed".format(simulation_id, random_seed, post_setup_command))
+            for pre_setup_command in post_setup_commands:
+                netlogo_link.command(pre_setup_command)
+                print("id:{} seed:{} {} executed after setup".format(simulation_id, random_seed, pre_setup_command))
         else:
             print("id:{} seed:{} no post-setup commands".format(simulation_id, random_seed))
 
@@ -158,7 +176,7 @@ def start_experiments(experiment_configurations, results_file):
     experiment_data = {}  # type: Dict[str, List[float]]
     for experiment_name, experiment_commands in experiment_configurations.items():
         scenario_times = run_parallel_simulations(SAMPLES,
-                                                  post_setup_commands=experiment_commands)  # type:List[float]
+                                                  setup_commands=experiment_commands)  # type:List[float]
         experiment_data[experiment_name] = scenario_times
 
     end_time = time.time()  # type: float
@@ -175,11 +193,11 @@ def run_simulation_with_dict(dict_parameters):
     return run_simulation(**dict_parameters)
 
 
-def run_parallel_simulations(samples, post_setup_commands, gui=False):
-    # type: (int, List[str], bool) -> List[float]
+def run_parallel_simulations(samples, setup_commands, gui=False):
+    # type: (int, List[Tuple], bool) -> List[float]
 
     initialise_arguments = (gui,)  # type: Tuple
-    simulation_parameters = [{"simulation_id": simulation_id, "post_setup_commands": post_setup_commands,
+    simulation_parameters = [{"simulation_id": simulation_id, "setup_commands": setup_commands,
                               "random_seed": random.randint(NETLOGO_MINIMUM_SEED, NETLOGO_MAXIMUM_SEED)}
                              for simulation_id in range(samples)]  # type: List[Dict]
 
@@ -336,7 +354,7 @@ def test_mann_whitney(first_scenario_column, second_scenario_column, csv_file, a
 def simulate_and_store(fall_length):
     # type: (int) -> None
     results_file_name = RESULTS_CSV_FILE.format(fall_length, SAMPLES)  # type:str
-    update_fall_length = SET_FALL_LENGTH_COMMAND.format(fall_length)  # type: str
+    update_fall_length = (SET_FALL_LENGTH_COMMAND.format(fall_length), False)  # type: Tuple
 
     updated_simulation_scenarios = {scenario_name: commands + [update_fall_length]
                                     for scenario_name, commands in

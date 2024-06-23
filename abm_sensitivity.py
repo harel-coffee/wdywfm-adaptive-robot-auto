@@ -66,7 +66,7 @@ def generate_data_for_analysis():
         post_setup_commands.append(SET_PASSENGER_BONUS_COMMAND.format(passenger_bonus))
 
         scenario_times = run_parallel_simulations(SENSITIVITY_SAMPLES,
-                                                  post_setup_commands=post_setup_commands)  # type: List[float]
+                                                  setup_commands=post_setup_commands)  # type: List[float]
         for evacuation_time in scenario_times:
             sensitivity_data.append({FALL_LENGTH_COLUMN: fall_length,
                                      PASSENGER_BONUS_COLUMN: passenger_bonus,
