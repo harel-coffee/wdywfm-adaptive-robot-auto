@@ -10,8 +10,15 @@ as well as its [Python extension](https://gambitproject.readthedocs.io/en/latest
 
 * `abm_analysis.py`: This script generates CSV files with simulation 
 results (`simulate_and_store` produces files in the format of `*_experiment_results.csv`) and then 
-performs statistical analysis. Its `run_parallel_simulations` function is used in multiple
+performs statistical analysis and writes its results to `metrics.csv`.
+Its `run_parallel_simulations` function is used in multiple
 scripts for running IMPACT+ simulations.
+The `metrics.csv` includes, per scenario:
+  * Mean evacuation time.
+  * Standard deviation of evacuation time.
+  * Minimum evacuation time.
+  * Maximum evacuation time.
+  * [Post-Hoc pairwise Dunn's test](https://scikit-posthocs.readthedocs.io/en/latest/generated/scikit_posthocs.posthoc_dunn.html), against the other scenarios.
 * `abm_gamemodel.py`: This script contains the `generate_game_model` function, that uses
 Gambit to return a game-theoretic model of the robot-survivor interaction. It is used by
 the `abm_runner.py` script.
