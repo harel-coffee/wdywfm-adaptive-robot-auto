@@ -8,6 +8,7 @@ This module relies on Python 3+ for some statistical analysis.
 
 import math
 import multiprocessing
+import random
 import time
 import traceback
 from itertools import combinations
@@ -35,7 +36,7 @@ TURTLE_PRESENT_REPORTER = "count turtles"  # type:str
 EVACUATED_REPORTER = "number_passengers - count agents + 1"  # type:str
 DEAD_REPORTER = "count agents with [ st_dead = 1 ]"  # type:str
 
-SEED_SIMULATION_REPORTER = "seed-simulation"
+SEED_SIMULATION_REPORTER = "seed-simulation {}"
 
 RESULTS_CSV_FILE = "data/{}_fall_{}_samples_experiment_results.csv"  # type:str
 
@@ -43,9 +44,13 @@ SET_SIMULATION_ID_COMMAND = "set SIMULATION_ID {}"  # type:str
 SET_STAFF_SUPPORT_COMMAND = "set REQUEST_STAFF_SUPPORT {}"  # type: str
 SET_PASSENGER_SUPPORT_COMMAND = "set REQUEST_BYSTANDER_SUPPORT {}"  # type: str
 SET_FALL_LENGTH_COMMAND = "set DEFAULT_FALL_LENGTH {}"  # type:str
+SET_ENABLE_LOGGING_COMMAND = "set ENABLE_LOGGING {}"  # type:str
 
 ENABLE_STAFF_COMMAND = SET_STAFF_SUPPORT_COMMAND.format("TRUE")  # type:str
 ENABLE_PASSENGER_COMMAND = SET_PASSENGER_SUPPORT_COMMAND.format("TRUE")  # type:str
+
+NETLOGO_MINIMUM_SEED = -2147483648  # type:int
+NETLOGO_MAXIMUM_SEED = 2147483647  # type:int
 
 NO_SUPPORT_COLUMN = "no-support"  # type:str
 ONLY_STAFF_SUPPORT_COLUMN = "staff-support"  # type:str
@@ -63,16 +68,18 @@ SAMPLES = 100  # type:int
 MAX_NETLOGO_TICKS = 2000  # type: int
 FALL_LENGTHS = [minutes * 30 for minutes in range(1, 21)]  # type: List[int]
 
-
 # For test runs
-# SAMPLES = 10  # type:int
+# SAMPLES = 3  # type:int
 # FALL_LENGTHS = [minutes * 60 for minutes in range(3, 4)]  # type: List[int]
+# SIMULATION_SCENARIOS = {ADAPTIVE_SUPPORT_COLUMN: [SET_ENABLE_LOGGING_COMMAND.format("TRUE"),
+#                                                   ENABLE_PASSENGER_COMMAND,
+#                                                   ENABLE_STAFF_COMMAND]}  # type: Dict[str, List[str]]
+# NETLOGO_MINIMUM_SEED = 0  # type:int
+# NETLOGO_MAXIMUM_SEED = 10  # type:int
 
 
 # Using https://www.stat.ubc.ca/~rollin/stats/ssize/n2.html
 # And https://www.statology.org/pooled-standard-deviation-calculator/
-
-
 # function to calculate Cohen's d for independent samples
 # Inspired by: https://machinelearningmastery.com/effect-size-measures-in-python/
 
@@ -93,21 +100,21 @@ def calculate_sample_size(mean_1, mean_2, std_dev_1, std_dev_2, alpha=0.05, powe
     return result
 
 
-def run_simulation(simulation_id, post_setup_commands):
-    # type: (int, List[str]) -> Optional[float]
+def run_simulation(simulation_id, post_setup_commands, random_seed=0):
+    # type: (int, List[str], int) -> Optional[float]
     from pyNetLogo import NetLogoException
 
     try:
-        current_seed = netlogo_link.report(SEED_SIMULATION_REPORTER)  # type:str
+        random_seed = netlogo_link.report(SEED_SIMULATION_REPORTER.format(random_seed))  # type:str
         netlogo_link.command("setup")
         netlogo_link.command(SET_SIMULATION_ID_COMMAND.format(simulation_id))
 
         if len(post_setup_commands) > 0:
             for post_setup_command in post_setup_commands:
                 netlogo_link.command(post_setup_command)
-                print("id:{} seed:{} {} executed".format(simulation_id, current_seed, post_setup_command))
+                print("id:{} seed:{} {} executed".format(simulation_id, random_seed, post_setup_command))
         else:
-            print("id:{} seed:{} no post-setup commands".format(simulation_id, current_seed))
+            print("id:{} seed:{} no post-setup commands".format(simulation_id, random_seed))
 
         metrics_dataframe = netlogo_link.repeat_report(
             netlogo_reporter=[TURTLE_PRESENT_REPORTER, EVACUATED_REPORTER, DEAD_REPORTER],
@@ -117,7 +124,7 @@ def run_simulation(simulation_id, post_setup_commands):
             metrics_dataframe[TURTLE_PRESENT_REPORTER] == metrics_dataframe[DEAD_REPORTER]]
 
         evacuation_time = evacuation_finished.index.min()  # type: float
-        print("id:{} seed:{} evacuation time {}".format(simulation_id, current_seed, evacuation_time))
+        print("id:{} seed:{} evacuation time {}".format(simulation_id, random_seed, evacuation_time))
         if math.isnan(evacuation_time):
             metrics_dataframe.to_csv("data/nan_df.csv")
             print("DEBUG!!! info to data/nan_df.csv")
@@ -172,7 +179,8 @@ def run_parallel_simulations(samples, post_setup_commands, gui=False):
     # type: (int, List[str], bool) -> List[float]
 
     initialise_arguments = (gui,)  # type: Tuple
-    simulation_parameters = [{"simulation_id": simulation_id, "post_setup_commands": post_setup_commands}
+    simulation_parameters = [{"simulation_id": simulation_id, "post_setup_commands": post_setup_commands,
+                              "random_seed": random.randint(NETLOGO_MINIMUM_SEED, NETLOGO_MAXIMUM_SEED)}
                              for simulation_id in range(samples)]  # type: List[Dict]
 
     results = []  # type: List[float]
@@ -221,7 +229,6 @@ def plot_results(csv_file, samples_in_title=False):
     plot_axis.set_title(title)
     plot_axis.set_xlabel("IDEA variant")
     plot_axis.set_ylabel("Evacuation time")
-
 
     plt.savefig("img/" + file_description + "_violin_plot.png", bbox_inches='tight', pad_inches=0)
     plt.savefig("img/" + file_description + "_violin_plot.eps", bbox_inches='tight', pad_inches=0)
@@ -379,8 +386,8 @@ def perform_analysis(fall_length):
 
 
 if __name__ == "__main__":
-    # for length in FALL_LENGTHS:
-    #     simulate_and_store(length)
+    for length in FALL_LENGTHS:
+        simulate_and_store(length)
 
     metrics = pd.DataFrame([perform_analysis(length) for length in FALL_LENGTHS])  # type: pd.DataFrame
     metrics_file = "data/metrics.csv"  # type: str
