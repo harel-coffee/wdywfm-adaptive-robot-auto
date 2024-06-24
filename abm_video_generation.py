@@ -3,13 +3,14 @@ import glob
 import natsort
 from PIL import Image
 from typing import List
+from abm_analysis import SAMPLES
 
 WORKSPACE_FOLDER = "/home/cgc87/github/wdywfm-adaptive-robot/"
 FRAME_FOLDER = WORKSPACE_FOLDER + "frames"  # type:str
 
 
 def generate_video(simulation_id, frame_duration=200):
-    # type: ( str, int) -> None
+    # type: ( int, int) -> None
     search_string = "{}/view_{}_*png".format(FRAME_FOLDER, simulation_id)  # type: str
     frame_list = natsort.natsorted(glob.glob(search_string))  # type: List[str]
     number_of_frames = len(frame_list)  # type: int
@@ -32,5 +33,5 @@ def generate_video(simulation_id, frame_duration=200):
 
 
 if __name__ == "__main__":
-    simulation_id = 0  # type: int
-    generate_video(simulation_id=simulation_id)
+    for simulation_id in range(SAMPLES):
+        generate_video(simulation_id=simulation_id)

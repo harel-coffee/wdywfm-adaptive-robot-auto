@@ -33,7 +33,7 @@ class ProSocialRobotController(AbstractRobotController):
 class AutonomicManagerController(AbstractRobotController):
 
     def __init__(self, type_analyser, model_generator):
-        self.type_analyser = type_analyser  # type: analyser.SyntheticTypeAnalyser
+        self.type_analyser = type_analyser  # type: analyser.NeuralNetworkTypeAnalyser
         self.external_solver = solver.ExternalSubGamePerfectSolver()  # type: solver.ExternalSubGamePerfectSolver
         self.interaction_game = None  # type: Optional[InteractionGame]
 
@@ -111,7 +111,7 @@ class AutonomicManagerController(AbstractRobotController):
 
 
 def main():
-    manager = AutonomicManagerController(analyser.SyntheticTypeAnalyser(model_file="trained_model.h5"))
+    manager = AutonomicManagerController(analyser.NeuralNetworkTypeAnalyser(model_file="trained_model.h5"))
     sample_sensor_reading = np.zeros(shape=(1, 31))  # type: np.ndarray
     robot_action = manager.sensor_data_callback(sample_sensor_reading)
     print(robot_action)

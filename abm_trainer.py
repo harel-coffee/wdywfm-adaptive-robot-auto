@@ -10,7 +10,7 @@ from typing import List, Tuple, Optional
 
 from abm_analysis import run_parallel_simulations, SET_STAFF_SUPPORT_COMMAND, SET_PASSENGER_SUPPORT_COMMAND, \
     SET_FALL_LENGTH_COMMAND, SET_ENABLE_LOGGING_COMMAND
-from analyser import SyntheticTypeAnalyser
+from analyser import NeuralNetworkTypeAnalyser
 from prob_calibration import start_probability_calibration
 from synthetic_runner import encode_training_data, TYPE_ANALYSER_MODEL_FILE, ENCODER_FILE
 
@@ -101,7 +101,7 @@ def start_training(max_epochs, training_batch_size, learning_rate, units_per_lay
     #                         balance_data=under_sample,
     #                         calculate_weights=calculate_weights)  # type: SyntheticTypeAnalyser
 
-    type_analyser = SyntheticTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
+    type_analyser = NeuralNetworkTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
 
     with open(ENCODER_FILE, "rb") as encoder_file:
         encoder = pickle.load(encoder_file)  # type: OneHotEncoder

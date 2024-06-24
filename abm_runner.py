@@ -7,7 +7,7 @@ from typing import Dict
 
 import abm_gamemodel
 from abm_trainer import CALIBRATION_SENSOR_DATA_FILE, CALIBRATION_PERSON_TYPE_FILE
-from analyser import SyntheticTypeAnalyser, CalibratedTypeAnalyser
+from analyser import NeuralNetworkTypeAnalyser, CalibratedTypeAnalyser, NaiveTypeAnalyser
 from controller import AutonomicManagerController
 from environment import NetlogoEvacuationEnvironment
 from prob_calibration import get_calibrated_model
@@ -33,6 +33,22 @@ def run_scenario(robot_controller, emergency_environment):
     return robot_action
 
 
+def get_calibrated_analyser():
+    # type: () -> CalibratedTypeAnalyser
+    base_type_analyser = NeuralNetworkTypeAnalyser(
+        model_file=PROJECT_DIRECTORY + TYPE_ANALYSER_MODEL_FILE)  # type: NeuralNetworkTypeAnalyser
+    type_analyser, _, _ = get_calibrated_model(base_type_analyser,
+                                               PROJECT_DIRECTORY + CALIBRATION_SENSOR_DATA_FILE,
+                                               PROJECT_DIRECTORY + CALIBRATION_PERSON_TYPE_FILE,
+                                               method="isotonic")  # type: CalibratedTypeAnalyser
+    return type_analyser
+
+
+def get_naive_analyser():
+    # type: () -> NaiveTypeAnalyser
+    return NaiveTypeAnalyser(shared_identity_probability=0.8)
+
+
 def main():
     parser = ArgumentParser("Get a robot action from the adaptive controller",
                             formatter_class=ArgumentDefaultsHelpFormatter)  # type: ArgumentParser
@@ -50,12 +66,10 @@ def main():
     arguments = parser.parse_args()
     configuration = vars(arguments)  # type:Dict
 
-    base_type_analyser = SyntheticTypeAnalyser(
-        model_file=PROJECT_DIRECTORY + TYPE_ANALYSER_MODEL_FILE)  # type: SyntheticTypeAnalyser
-    type_analyser, _, _ = get_calibrated_model(base_type_analyser,
-                                               PROJECT_DIRECTORY + CALIBRATION_SENSOR_DATA_FILE,
-                                               PROJECT_DIRECTORY + CALIBRATION_PERSON_TYPE_FILE,
-                                               method="isotonic")  # type: CalibratedTypeAnalyser
+    # This is the type analyser used for TOSEM 204
+    # type_analyser = get_calibrated_analyser()
+
+    type_analyser = get_naive_analyser()
     robot_controller = AutonomicManagerController(type_analyser,
                                                   abm_gamemodel.generate_game_model)
 

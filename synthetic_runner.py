@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from typing import Tuple, Optional, List
 
-from analyser import SyntheticTypeAnalyser, TYPE_TO_CLASS
+from analyser import NeuralNetworkTypeAnalyser, TYPE_TO_CLASS
 from controller import AutonomicManagerController
 from gamemodel import PERSONAL_IDENTITY_TYPE, SHARED_IDENTITY_TYPE
 
@@ -157,7 +157,7 @@ def plot_confusion_matrix(sensor_data, person_type, model_file):
     # type: (np.ndarray, np.ndarray, str) -> None
     logging.info("Confusion Matrix for model {}.".format(model_file))
 
-    type_analyser = SyntheticTypeAnalyser(model_file=model_file)  # type: SyntheticTypeAnalyser
+    type_analyser = NeuralNetworkTypeAnalyser(model_file=model_file)  # type: NeuralNetworkTypeAnalyser
     person_type_predictions = type_analyser.predict_type(sensor_data)  # type: np.ndarray
     matrix_data = confusion_matrix(person_type, person_type_predictions)  # type: np.ndarray
 
@@ -177,15 +177,15 @@ def train_type_analyser(sensor_data_train, person_type_train,
                         batch_size, target_accuracy,
                         units_per_layer, epochs=100, metric="binary_crossentropy", learning_rate=0.001,
                         patience=0, balance_data=True, calculate_weights=False):
-    # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, Optional[float], List[int], int, str, float, int, bool, bool) -> SyntheticTypeAnalyser
+    # type: (np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, Optional[float], List[int], int, str, float, int, bool, bool) -> NeuralNetworkTypeAnalyser
 
     _, num_features = sensor_data_train.shape
     logging.info("Training data shape: : {}. Learning rate {}".format(sensor_data_train.shape, learning_rate))
 
-    type_analyser = SyntheticTypeAnalyser(num_features=num_features,
-                                          metric=metric,
-                                          learning_rate=learning_rate,
-                                          units_per_layer=units_per_layer)  # type: SyntheticTypeAnalyser
+    type_analyser = NeuralNetworkTypeAnalyser(num_features=num_features,
+                                              metric=metric,
+                                              learning_rate=learning_rate,
+                                              units_per_layer=units_per_layer)  # type: NeuralNetworkTypeAnalyser
 
     if balance_data:
         sensor_data_train, person_type_train = balance_dataset(sensor_data_train, person_type_train)
@@ -223,7 +223,7 @@ def train_type_analyser(sensor_data_train, person_type_train,
 
 
 def start_sanity_check(type_analyser, sensor_data_train, person_type_train, batch_size):
-    # type: (SyntheticTypeAnalyser, np.ndarray, np.ndarray, int) -> None
+    # type: (NeuralNetworkTypeAnalyser, np.ndarray, np.ndarray, int) -> None
 
     logging.info("SANITY CHECK: Single sample")
     zero_responder_index = get_index_by_value(person_type_train, TYPE_TO_CLASS[SHARED_IDENTITY_TYPE])  # type:np.ndarray
@@ -302,7 +302,7 @@ def main():
         type_analyser = train_type_analyser(sensor_data_train, person_type_train, training_batch_size, target_accuracy,
                                             encode_categorical_data, max_epochs)
     else:
-        type_analyser = SyntheticTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
+        type_analyser = NeuralNetworkTypeAnalyser(model_file=TYPE_ANALYSER_MODEL_FILE)
 
     robot_controller = AutonomicManagerController(type_analyser)
 

@@ -30,6 +30,17 @@ TYPE_TO_CLASS = {
 }
 
 
+class NaiveTypeAnalyser(object):
+
+    def __init__(self, shared_identity_probability):
+        # type: (float) -> None
+        self.shared_identity_probability = shared_identity_probability
+
+    def obtain_probabilities(self, sensor_data):
+        # type: (np.ndarray) -> np.ndarray
+        return np.array([self.shared_identity_probability])
+
+
 class CalibratedTypeAnalyser(object):
 
     def __init__(self, base_estimator, method):
@@ -46,7 +57,7 @@ class CalibratedTypeAnalyser(object):
         return self.calibrated_classifier.predict_proba(sensor_data)[:, 1]
 
 
-class SyntheticTypeAnalyser(object):
+class NeuralNetworkTypeAnalyser(object):
 
     def __init__(self, num_features=0, metric="", learning_rate=0.001, units_per_layer=None,
                  model_file=None):

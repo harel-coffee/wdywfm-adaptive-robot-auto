@@ -9,7 +9,7 @@ from sklearn.calibration import calibration_curve
 from sklearn.metrics import brier_score_loss, roc_auc_score, log_loss
 from typing import Optional, Union, Tuple
 
-from analyser import SyntheticTypeAnalyser, CalibratedTypeAnalyser
+from analyser import NeuralNetworkTypeAnalyser, CalibratedTypeAnalyser
 
 
 def plot_reliability_diagram(person_type, person_type_probabilities, bins, probability_label):
@@ -49,7 +49,7 @@ def start_calibration(sensor_data, person_type, model_file, calibrate=False, bin
 
     logging.info("Reliability diagram for model {}.".format(model_file))
 
-    type_analyser = SyntheticTypeAnalyser(model_file=model_file)  # type: SyntheticTypeAnalyser
+    type_analyser = NeuralNetworkTypeAnalyser(model_file=model_file)  # type: NeuralNetworkTypeAnalyser
 
     person_type_probabilities = type_analyser.obtain_probabilities(sensor_data)  # type: np.ndarray
 
@@ -63,7 +63,7 @@ def start_calibration(sensor_data, person_type, model_file, calibrate=False, bin
 
 
 def get_calibrated_model(type_analyser, calibration_sensor_data_file, calibration_person_type_file, method):
-    # type: (SyntheticTypeAnalyser, str, str, str) ->  Tuple[CalibratedTypeAnalyser, np.ndarray, np.ndarray]
+    # type: (NeuralNetworkTypeAnalyser, str, str, str) ->  Tuple[CalibratedTypeAnalyser, np.ndarray, np.ndarray]
 
     sensor_data_validation = load(calibration_sensor_data_file)  # type:np.ndarray
     logging.info("Calibration sensor data loaded from: {}".format(calibration_sensor_data_file))
@@ -81,12 +81,12 @@ def get_calibrated_model(type_analyser, calibration_sensor_data_file, calibratio
 
 def start_probability_calibration(type_analyser, calibration_sensor_data_file, calibration_person_type_file,
                                   sensor_data_test, person_type_test, bins, method="isotonic"):
-    # type: (Union[SyntheticTypeAnalyser, str], str, str, np.ndarray, np.ndarray, int, str) -> None
+    # type: (Union[NeuralNetworkTypeAnalyser, str], str, str, np.ndarray, np.ndarray, int, str) -> None
 
     calibration_start_time = time.time()  # type: float
 
     if isinstance(type_analyser, basestring):
-        type_analyser = SyntheticTypeAnalyser(model_file=type_analyser)  # type:SyntheticTypeAnalyser
+        type_analyser = NeuralNetworkTypeAnalyser(model_file=type_analyser)  # type:NeuralNetworkTypeAnalyser
 
     logging.info(str(type_analyser))
     calibrated_classifier, sensor_data_validation, person_type_validation = get_calibrated_model(
@@ -114,11 +114,11 @@ def start_probability_calibration(type_analyser, calibration_sensor_data_file, c
 
 
 def get_expected_calibration_error(sensor_data, person_type, model_file=None, type_analyser=None):
-    # type: (np.ndarray, np.ndarray, Optional[str], Optional[SyntheticTypeAnalyser]) -> float
+    # type: (np.ndarray, np.ndarray, Optional[str], Optional[NeuralNetworkTypeAnalyser]) -> float
 
     if model_file is not None:
         logging.info("Expected calibration error for model {}.".format(model_file))
-        type_analyser = SyntheticTypeAnalyser(model_file=model_file)  # type: SyntheticTypeAnalyser
+        type_analyser = NeuralNetworkTypeAnalyser(model_file=model_file)  # type: NeuralNetworkTypeAnalyser
     else:
         logging.info("Expected calibration error for SyntheticTypeAnalyser instance.")
 

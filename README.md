@@ -32,7 +32,9 @@ analysis of evacuation time as a function of fall length and help factor.
 
 ## IMPACT+ Explainer
 
-* IDEA robot: Lime green vehicle.
+* IDEA robot exploring: Lime green vehicle.
+* IDEA robot requesting survivor help: Magenta vehicle.
 * Passengers: Black stick figures.
+* First responders: Green stick figures.
 * Passengers evacuating: Pink stick figures.
 * Dead passengers: Grey stick figures.

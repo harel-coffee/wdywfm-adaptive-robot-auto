@@ -47,7 +47,8 @@ SET_FALL_LENGTH_COMMAND = "set DEFAULT_FALL_LENGTH {}"  # type:str
 SET_ENABLE_LOGGING_COMMAND = "set ENABLE_LOGGING {}"  # type:str
 SET_GENERATE_FRAMES_COMMAND = "set ENABLE_FRAME_GENERATION {}"  # type:str
 SET_NUMBER_PASSENGERS_COMMAND = "set number_passengers {}"  # type:str
-SET_NUMBER_STAFF_COMMAND = "set _number_normal_staff_members {}"  # type:str
+SET_NUMBER_NORMAL_STAFF_COMMAND = "set _number_normal_staff_members {}"  # type:str
+SET_NUMBER_STAFF_COMMAND = "set _number_staff_members {}"  # type:str
 
 ENABLE_STAFF_COMMAND = SET_STAFF_SUPPORT_COMMAND.format("TRUE")  # type:str
 ENABLE_PASSENGER_COMMAND = SET_PASSENGER_SUPPORT_COMMAND.format("TRUE")  # type:str
@@ -64,24 +65,24 @@ SIMULATION_SCENARIOS = {NO_SUPPORT_COLUMN: [],
                         ONLY_STAFF_SUPPORT_COLUMN: [ENABLE_STAFF_COMMAND],
                         ONLY_PASSENGER_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND],
                         ADAPTIVE_SUPPORT_COLUMN: [ENABLE_PASSENGER_COMMAND,
-                                                  ENABLE_STAFF_COMMAND]}  # type: Dict[str, List[str]]
+                                                  ENABLE_STAFF_COMMAND]}  # type: Dict[str, List[Tuple]]
 
 # Settings for experiments
 SAMPLES = 100  # type:int
 MAX_NETLOGO_TICKS = 2000  # type: int
 FALL_LENGTHS = [minutes * 30 for minutes in range(1, 21)]  # type: List[int]
 
-# For test runs
-SAMPLES = 1  # type:int
-FALL_LENGTHS = [minutes * 60 for minutes in range(3, 4)]  # type: List[int]
+# TODO(cgavidia): Uncomment for test runs
+SAMPLES = 1
+FALL_LENGTHS = [minutes * 60 for minutes in range(3, 4)]
 SIMULATION_SCENARIOS = {ADAPTIVE_SUPPORT_COLUMN: [
+    (SET_NUMBER_NORMAL_STAFF_COMMAND.format(1), True),
     (SET_NUMBER_STAFF_COMMAND.format(1), True),
-    (SET_NUMBER_PASSENGERS_COMMAND.format(1), True),
+    (SET_NUMBER_PASSENGERS_COMMAND.format(300), True),
     (SET_GENERATE_FRAMES_COMMAND.format("TRUE"), False),
     (SET_ENABLE_LOGGING_COMMAND.format("TRUE"), False),
     (ENABLE_PASSENGER_COMMAND, False),
-    (ENABLE_STAFF_COMMAND, False)]}  # type: Dict[str, List[Tuple]]
-
+    (ENABLE_STAFF_COMMAND, False)]}
 NETLOGO_MINIMUM_SEED = 0  # type:int
 NETLOGO_MAXIMUM_SEED = 10  # type:int
 
@@ -169,7 +170,7 @@ def initialize(gui):
 
 
 def start_experiments(experiment_configurations, results_file):
-    # type: (Dict[str, List[str]], str) -> None
+    # type: (Dict[str, List[Tuple]], str) -> None
 
     start_time = time.time()  # type: float
 
@@ -358,7 +359,7 @@ def simulate_and_store(fall_length):
 
     updated_simulation_scenarios = {scenario_name: commands + [update_fall_length]
                                     for scenario_name, commands in
-                                    SIMULATION_SCENARIOS.iteritems()}  # type: Dict[str, List[str]]
+                                    SIMULATION_SCENARIOS.iteritems()}  # type: Dict[str, List[Tuple]]
     start_experiments(updated_simulation_scenarios, results_file_name)
 
 
